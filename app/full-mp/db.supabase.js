@@ -88,6 +88,8 @@ function makeSupabaseDb(client) {
       const sa = String(r.updated_at || '').slice(0, 10);
       const p = { id: r.id, created_at: String(r.created_at || '').slice(0, 10), updated_at: r.updated_at || r.created_at, durable: {}, percycle: {} };
       for (const col in PSCALAR_REV) if (r[col] != null) place(p, PSCALAR_REV[col], r[col], sa);
+      /* print-quality letterhead PNG — kept out of PSCALAR so buildPropRow doesn't re-push it on every save */
+      if (r.letterhead_data != null) place(p, 'assets.letterhead_data', r.letterhead_data, sa);
       const pb = r.partb || {};
       ['equipment', 'utilities', 'fuel', 'services'].forEach(g => { if (Array.isArray(pb[g])) pb[g].forEach((v, i) => place(p, 'partb.' + g + '.' + i, v, sa)); });
       if (pb.writein && typeof pb.writein === 'object') for (const k in pb.writein) place(p, 'partb.writein.' + k, pb.writein[k], sa);
@@ -254,17 +256,19 @@ function makeSupabaseDb(client) {
         for (const k in map) place(p, k, (map[k] && map[k].value != null ? map[k].value : ''), (map[k] && map[k].saved_at) ? map[k].saved_at : today());
         touch(pid); return enqueue(pid, () => pushProperty(pid));
       },
-      setLetterhead(pid, name, thumb) {
+      setLetterhead(pid, name, thumb, data) {
         const p = D.props[pid]; if (!p) return Promise.resolve();
         p.durable['assets.letterhead_name'] = { value: name || '', source: 'database', saved_at: today() };
         if (thumb !== undefined) p.durable['assets.letterhead_thumb'] = { value: thumb || '', source: 'database', saved_at: today() };
+        if (data !== undefined) p.durable['assets.letterhead_data'] = { value: data || '', source: 'database', saved_at: today() };
         touch(pid);
         const patch = { letterhead_asset: name || '', updated_at: now() }; if (thumb !== undefined) patch.letterhead_thumb = thumb || '';
+        if (data !== undefined) patch.letterhead_data = data || '';
         return enqueue(pid, () => client.from('property').update(patch).eq('id', pid).then(r => { if (r.error) throw r.error; }));
       },
       getLetterhead(pid) {
-        const p = D.props[pid]; if (!p) return { name: '', thumb: '' };
-        return { name: dv(p, 'assets.letterhead_name'), thumb: dv(p, 'assets.letterhead_thumb') };
+        const p = D.props[pid]; if (!p) return { name: '', thumb: '', data: '' };
+        return { name: dv(p, 'assets.letterhead_name'), thumb: dv(p, 'assets.letterhead_thumb'), data: dv(p, 'assets.letterhead_data') };
       },
       listContacts() { return (D.contacts || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))); },
       async addContact(c) {

@@ -306,16 +306,17 @@ async function makeDb(adapter, opts) {
       }
       touch(pid); return persist();
     },
-    /** Letterhead — a permanent per-property durable asset (name + optional thumbnail). */
-    setLetterhead(pid, name, thumb) {
+    /** Letterhead — a permanent per-property durable asset (name + UI thumbnail + print-quality PNG). */
+    setLetterhead(pid, name, thumb, data) {
       const p = D.props[pid]; if (!p) return;
       p.durable['assets.letterhead_name'] = cell(name || '');
       if (thumb !== undefined) p.durable['assets.letterhead_thumb'] = cell(thumb || '');
+      if (data !== undefined) p.durable['assets.letterhead_data'] = cell(data || '');
       touch(pid); return persist();
     },
     getLetterhead(pid) {
-      const p = D.props[pid]; if (!p) return { name: '', thumb: '' };
-      return { name: dv(p, 'assets.letterhead_name'), thumb: dv(p, 'assets.letterhead_thumb') };
+      const p = D.props[pid]; if (!p) return { name: '', thumb: '', data: '' };
+      return { name: dv(p, 'assets.letterhead_name'), thumb: dv(p, 'assets.letterhead_thumb'), data: dv(p, 'assets.letterhead_data') };
     },
     listContacts() { return (D.meta.contacts || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))); },
     addContact(c) { D.meta.contacts = D.meta.contacts || []; const id = nid('k'); D.meta.contacts.push({ id, name: (c && c.name) || '', email: (c && c.email) || '', phone: (c && c.phone) || '' }); persist(); return id; },
