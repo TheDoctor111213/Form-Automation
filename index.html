@@ -1082,6 +1082,7 @@ function keysChanged(p){const all=new Set([...Object.keys(form),...Object.keys(D
 function dbIdxSize(p){const s=new Set();Object.keys(DBSNAP).forEach(k=>{if(k.startsWith(p)&&DBSNAP[k].value!==''){const m=k.slice(p.length).match(/^(\d+)\./);if(m)s.add(m[1]);}});return s.size;}
 function unitsChanged(){return UNITS.length!==dbIdxSize('units.')||keysChanged('units.');}
 function nonrevChanged(){return NONREV.length!==dbIdxSize('nonrev.')||keysChanged('nonrev.');}
+function comboSrc(keys){const b=srcOf(keys[0]);if(keys.some(k=>srcOf(k)==='overridden'))return'overridden';if(keys.some(k=>srcOf(k)==='new'&&get(k)!==''&&get(k)!=null))return(b==='database'||b==='this-cycle')?'new':b;return b;}
 function modeOf(kk){const keys=Array.isArray(kk)?kk:[kk];if(keys.some(k=>srcOf(k)==='overridden'))return 'over';if(keys.some(k=>srcOf(k)==='new'&&get(k)!==''&&get(k)!=null))return 'new';return '';}
 function ovIcons(kk){const keys=Array.isArray(kk)?kk:[kk];const j=keys.join(',');const m=modeOf(keys);return `<span class="ovic" data-ovic="${j}" data-mode="${m}" style="display:${m?'inline-flex':'none'}"><button class="miniic rv" data-rev="${j}" title="Revert to on-file">↺</button><button class="miniic sv" data-save1="${j}" title="Save this field to the database">✓</button></span>`;}
 
@@ -1135,7 +1136,7 @@ function pocCell(){const k='poc.name';const contacts=(mpdb?mpdb.listContacts():[
   return `<div class="field"><div class="flabel">Point of contact</div><div class="fbox poccell" data-box="${k}" style="background:${c[1]};border-left-color:${c[0]}"><input class="pocname-in" data-k="poc.name" value="${esc(cur)}" placeholder="Type a name, or pick a saved contact" autocomplete="off">${pick}</div>${pocNote()}</div>`;}
 function fieldCell(f){if(f.type==='addr')return addrCell();if(f.type==='caaddr')return caAddrCell();if(f.type==='appraddr')return apprAddrCell();if(f.type==='mgmtaddr')return mgmtCell();if(f.type==='select')return selectCell(f);if(f.k==='poc.name')return pocCell();
   const s=form[f.k]||{value:'',source:'new'};
-  const st=(f.prefix&&srcOf(f.prefix)==='overridden')?'overridden':s.source;const c=CLR[st]||CLR.new;
+  const st=f.prefix?comboSrc([f.k,f.prefix]):s.source;const c=CLR[st]||CLR.new;
   const pre=f.prefix?csDrop(f.prefix,['Ms.','Mr.','Dr.','Mx.'],'—','csnarrow',true):'';
   return `<div class="field"><div class="flabel">${f.label}</div><div class="fbox" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${pre}<input type="text" data-k="${f.k}"${f.type==='phone'?' data-phone="1" inputmode="tel" maxlength="14"':''} value="${esc(s.value)}" autocomplete="off"></div>${ovNote(f.prefix?[f.prefix,f.k]:f.k)}</div>`;}
 function addrAgg(){if(ADDR.some(k=>srcOf(k)==='overridden'))return'overridden';if(ADDR.some(k=>srcOf(k)==='database'))return'database';return'new';}
@@ -1168,7 +1169,7 @@ function renderFieldSection(sec){const cols=[[],[]];sec.fields.forEach(f=>cols[f
 function boxColor(k){return CLR[srcOf(k)]||CLR.new;}
 function moneyBox(k){const c=boxColor(k);return `<div class="rbox money" data-box="${k}" style="background:${c[1]};border-left-color:${c[0]}"><span class="cur">$</span><input type="text" data-money="1" data-k="${k}" value="${esc(fmtMoney(get(k)))}">${ovIcons(k)}</div>`;}
 function numBox(k,ph){const c=boxColor(k);return `<div class="rbox" data-box="${k}" style="background:${c[1]};border-left-color:${c[0]}"><input type="text" data-k="${k}" value="${esc(get(k))}" placeholder="${esc(ph||'')}">${ovIcons(k)}</div>`;}
-function brbaBox(brK,baK){const st=(srcOf(brK)==='overridden'||srcOf(baK)==='overridden')?'overridden':(srcOf(brK)==='database'?'database':srcOf(brK));const c=CLR[st]||CLR.new;
+function brbaBox(brK,baK){const st=comboSrc([brK,baK]);const c=CLR[st]||CLR.new;
   return `<div class="rbox brba" data-box="${brK}" style="background:${c[1]};border-left-color:${c[0]}">${csDrop(brK,BR_OPTS,'BR','',true)}<span class="slash">/</span>${csDrop(baK,BA_OPTS,'BA','',true)}${ovIcons([brK,baK])}</div>`;}
 function uaBox(i){const src=get('units.'+i+'.ua_source')||defUaSrc(i),exec=get('units.'+i+'.ua_exec'),rcs=get('units.'+i+'.ua_rcs'),custom=get('units.'+i+'.ua_custom');
   const hasAny=numf(exec)>0||numf(rcs)>0||numf(custom)>0;
@@ -1186,7 +1187,7 @@ function typeUnresolved(i){return typeConflict(i)&&!typeReviewedOf(i);}
 function numConflict(i){const nR=get('units.'+i+'.num_rcs');return (nR!==''&&nR!=null)&&numf(nR)!==numf(get('units.'+i+'.num_units'));}
 function numReviewedOf(i){return get('units.'+i+'.num_reviewed')==='1';}
 function numUnresolved(i){return numConflict(i)&&!numReviewedOf(i);}
-function unitTypeCell(i){const brK='units.'+i+'.br',baK='units.'+i+'.ba';const st=typeUnresolved(i)?'overridden':((srcOf(brK)==='overridden'||srcOf(baK)==='overridden')?'overridden':(srcOf(brK)==='database'?'database':srcOf(brK)));const c=CLR[st]||CLR.new;
+function unitTypeCell(i){const brK='units.'+i+'.br',baK='units.'+i+'.ba';const st=typeUnresolved(i)?'overridden':comboSrc([brK,baK]);const c=CLR[st]||CLR.new;
   return `<div class="rbox brba" data-box="${brK}" style="background:${c[1]};border-left-color:${c[0]}">${csDrop(brK,BR_OPTS,'BR','',true)}<span class="slash">/</span>${csDrop(baK,BA_OPTS,'BA','',true)}${ovIcons([brK,baK])}</div>`;}
 function unitCountCell(i){const k='units.'+i+'.num_units';const st=numUnresolved(i)?'overridden':srcOf(k);const c=CLR[st]||CLR.new;return `<div class="rbox" data-box="${k}" style="background:${c[1]};border-left-color:${c[0]}"><input type="text" data-k="${k}" value="${esc(get(k))}">${ovIcons(k)}</div>`;}
 function typeNote(i){if(!typeConflict(i))return '';const br=get('units.'+i+'.br'),ba=get('units.'+i+'.ba'),brR=get('units.'+i+'.br_rcs')||br,baR=get('units.'+i+'.ba_rcs')||ba;
