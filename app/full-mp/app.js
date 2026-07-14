@@ -683,6 +683,12 @@ async function genRentAnalysis(){
 async function genPackage(){
   if(!(window.RCSGen&&window.PDFLib)){setStatus('Generator still loading - try again in a moment.');return;}
   if(numf(get('units.'+UNITS[0]+'.num_units'))<=0){setStatus('Cannot generate the package with zero units — the first unit type needs a unit count.');return;}
+  let hasLh=false;try{const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;hasLh=!!(L&&L.data);}catch(e){}
+  if(!hasLh){const alias=get('tenant.property_alias')||get('property.name')||'the property name';
+    dialogConfirm('No letterhead uploaded','The tenant notice will print with a generated header instead \u2014 \u201c'+esc(alias)+'\u201d (the property name as tenants know it) plus the management address. To print on the real letterhead, upload it on the property page first.','Generate anyway',false,()=>{__genPackageRun();});return;}
+  await __genPackageRun();
+}
+async function __genPackageRun(){
   const T=window.RCSTemplates||{};
   try{ setStatus('Generating package...'); const rec=formRec(); const logo=b64ToBytes(LOGO_B64);
     let lh=null; try{ const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;

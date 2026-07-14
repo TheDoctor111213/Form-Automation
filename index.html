@@ -1722,6 +1722,12 @@ async function genRentAnalysis(){
 async function genPackage(){
   if(!(window.RCSGen&&window.PDFLib)){setStatus('Generator still loading - try again in a moment.');return;}
   if(numf(get('units.'+UNITS[0]+'.num_units'))<=0){setStatus('Cannot generate the package with zero units — the first unit type needs a unit count.');return;}
+  let hasLh=false;try{const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;hasLh=!!(L&&L.data);}catch(e){}
+  if(!hasLh){const alias=get('tenant.property_alias')||get('property.name')||'the property name';
+    dialogConfirm('No letterhead uploaded','The tenant notice will print with a generated header instead \u2014 \u201c'+esc(alias)+'\u201d (the property name as tenants know it) plus the management address. To print on the real letterhead, upload it on the property page first.','Generate anyway',false,()=>{__genPackageRun();});return;}
+  await __genPackageRun();
+}
+async function __genPackageRun(){
   const T=window.RCSTemplates||{};
   try{ setStatus('Generating package...'); const rec=formRec(); const logo=b64ToBytes(LOGO_B64);
     let lh=null; try{ const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;
@@ -1848,7 +1854,19 @@ if(typeof module!=='undefined')module.exports={fmtPhone,fmtDate,sMoney,sPct,sK,a
     st.gap=h=>{ st.y-=h; };
     st.line=(t,o={})=>{ const f=o.font||R,s=o.size||11,x=o.x==null?M:o.x,c=o.color||ink; st.ensure(s*1.3); st.page.drawText(String(t),{x,y:st.y,size:s,font:f,color:c}); if(!o.stay) st.y-=(o.lead||s*1.32); };
     st.center=(t,o={})=>{ const f=o.font||R,s=o.size||11,c=o.color||ink; const w=f.widthOfTextAtSize(String(t),s); st.ensure(s*1.3); st.page.drawText(String(t),{x:(W-w)/2,y:st.y,size:s,font:f,color:c}); st.y-=(o.lead||s*1.32); };
-    st.para=(t,o={})=>{ const f=o.font||R,s=o.size||11,lead=o.leading||s*1.32,al=o.align||'justify',iL=o.indentL||0,iR=o.indentR||0,c=o.color||ink,ga=o.gapAfter==null?s*0.7:o.gapAfter;
+    st.rich=(segs,o={})=>{ const s=o.size||11,lead=(o.leading||s*1.32)*(st.leadScale||1),al=o.align||'justify',c=o.color||ink,ga=(o.gapAfter==null?s*0.7:o.gapAfter)*(st.gaScale||1);
+      const maxW=W-2*M; const sp=R.widthOfTextAtSize(' ',s); const words=[];
+      segs.forEach(sg=>{ String(sg.text).split(/\s+/).filter(Boolean).forEach(w=>words.push({w,f:sg.font||R})); });
+      let lines=[],cur=[],curW=0;
+      for(const it of words){ const ww=it.f.widthOfTextAtSize(it.w,s); const need=cur.length?curW+sp+ww:ww;
+        if(need>maxW&&cur.length){ lines.push({items:cur,w:curW}); cur=[it]; curW=ww; } else { cur.push(it); curW=need; } }
+      if(cur.length)lines.push({items:cur,w:curW});
+      lines.forEach((ln,idx)=>{ st.ensure(lead); const last=idx===lines.length-1;
+        let extra=0; if(al==='justify'&&!last&&ln.items.length>1) extra=(maxW-ln.w)/(ln.items.length-1);
+        let x=M; ln.items.forEach(it=>{ st.page.drawText(it.w,{x,y:st.y,size:s,font:it.f,color:c}); x+=it.f.widthOfTextAtSize(it.w,s)+sp+extra; });
+        st.y-=lead; });
+      st.y-=ga; };
+    st.para=(t,o={})=>{ const f=o.font||R,s=o.size||11,lead=(o.leading||s*1.32)*(st.leadScale||1),al=o.align||'justify',iL=o.indentL||0,iR=o.indentR||0,c=o.color||ink,ga=(o.gapAfter==null?s*0.7:o.gapAfter)*(st.gaScale||1);
       const maxW=W-2*M-iL-iR,x0=M+iL,sp=f.widthOfTextAtSize(' ',s);
       const words=String(t).split(/\s+/).filter(Boolean); let lines=[],cur=[];
       for(const w of words){ const tt=[...cur,w].join(' '); if(f.widthOfTextAtSize(tt,s)>maxW&&cur.length){lines.push(cur);cur=[w];} else cur.push(w); } if(cur.length)lines.push(cur);
@@ -1945,32 +1963,40 @@ if(typeof module!=='undefined')module.exports={fmtPhone,fmtDate,sMoney,sPct,sK,a
   }
   async function tenantNotice(rec, letterhead){
     const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const nm=t.tenant_alias||t.property_name;
-    const doc=await PDFDocument.create();
-    const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
-    const st=makeLetter(doc,R,B,I); st.y=792-58;
-    let placed=false;
-    // Letterhead is an underlay: the first page prints ON it (continuation
-    // pages stay plain, like feeding letterhead paper for page 1 only).
-    const lh=letterhead&&(letterhead.pdf||letterhead.png)?letterhead:(letterhead?{png:letterhead}:null);
-    if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-150; placed=true; }catch(e){} }
-    else if(lh&&lh.png){ try{ const img=await doc.embedPng(lh.png);
-      if(img.height>=img.width){ // page-shaped snapshot of the letterhead -> full-page underlay
-        st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-150; placed=true;
-      } else { // banner / logo strip across the top at real size
-        const ar=img.width/img.height; let h=110,w=h*ar; const maxW=612-2*72; if(w>maxW){w=maxW;h=w/ar;}
-        st.page.drawImage(img,{x:(612-w)/2,y:792-42-h,width:w,height:h}); st.y=792-42-h-24; placed=true; } }catch(e){} }
-    if(!placed){ st.center(nm,{font:B,size:14}); const a=[t.mgmt_addr,[t.mgmt_city,t.mgmt_state].filter(Boolean).join(', ')+' '+t.mgmt_zip].filter(x=>x&&x.trim()).join(' · '); if(a.trim())st.center(a,{size:9.5,color:st.grey}); st.gap(16); }
-    st.line('Date of Notice: '+t.notice_date); st.gap(8);
-    st.para('Notice to Residents of Intention to submit a request to '+t.ca_company+' for approval of increase in maximum permissible rents.');
-    st.para('Take notice that on '+t.notice_date+' we plan to submit a request for approval of increase in maximum permissible rents for '+nm+' to '+t.ca_company+'.',{gapAfter:0});
-    st.para('It is important to note that as long as you continue to be eligible under the applicable HUD guidelines for Section 8, your Total Tenant Payment will generally continue to be 30% of your adjusted income. It is also important to note that this rent increase only affects residents who receive subsidy under '+nm+'’s Housing Assistance Payments contract.',{font:B});
-    st.para('The proposed increase is needed for the following reasons: Fifth-Year Rent Comparability Study Adjustment. The rent increases for which we have requested approval are:',{gapAfter:7});
-    rentTable(st, rec); st.gap(17);
-    st.para('A copy of the materials that we are submitting to '+t.ca_company+' in support of our request will be available during normal business hours at the Management Office, '+t.mgmt_addr+', '+t.mgmt_city+', '+t.mgmt_state+' '+t.mgmt_zip+', for a period of 30 days from the date of service of this notice for inspection and copying by tenants and, if tenants wish by legal or other representatives acting for them solely or as a group.');
-    st.para('During a period of 30 days from the date of service, tenants of '+nm+' may submit written comments on the proposed increase to us at the Office, '+t.mgmt_addr+', '+t.mgmt_city+', '+t.mgmt_state+' '+t.mgmt_zip+'. Tenant representatives may assist tenants in preparing those comments. (If at '+t.ca_company+'’s request or otherwise, we make any material change during the comment period in the materials available for inspection or copying, we will notify the tenants of the change and the tenants will have a period of 15 days from the date of additional notice (or the remainder of any applicable period, if longer) to inspect and copy the materials as changed and to submit comments on the proposed rent increase.) The comments will be transmitted to '+t.ca_company+', along with our evaluation of them and our request for the increase.');
-    st.para(t.ca_company+' will approve, adjust upward or downward, or disapprove the proposed increase upon reviewing the request and comments. When '+t.ca_company+' advises us in writing of its decision on our request, you will be notified. If the request is approved, any allowable increase will be put into effect only after a period of at least 30 days from the date you are served with that notice and in accordance with the term of the existing lease.',{gapAfter:34});
-    st.line(t.sender_name); st.line(t.sender_title||'Community Manager');
-    return await doc.save();
+    // The notice must stay on ONE page. Font and table sizes never change:
+    // if the normal layout overflows, spacing alone is compacted in steps
+    // (top drop below the letterhead, paragraph gaps, then leading).
+    const LEVELS=[{drop:150,ga:1,lead:1,sig:34},{drop:132,ga:0.65,lead:1,sig:22},{drop:120,ga:0.45,lead:0.95,sig:14}];
+    let out=null;
+    for(const L of LEVELS){
+      const doc=await PDFDocument.create();
+      const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+      const st=makeLetter(doc,R,B,I); st.gaScale=L.ga; st.leadScale=L.lead; st.y=792-58;
+      let placed=false;
+      // Letterhead is an underlay: the first page prints ON it (continuation
+      // pages stay plain, like feeding letterhead paper for page 1 only).
+      const lh=letterhead&&(letterhead.pdf||letterhead.png)?letterhead:(letterhead?{png:letterhead}:null);
+      if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-L.drop; placed=true; }catch(e){} }
+      else if(lh&&lh.png){ try{ const img=await doc.embedPng(lh.png);
+        if(img.height>=img.width){ st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-L.drop; placed=true; }
+        else { const ar=img.width/img.height; let h=110,w=h*ar; const maxW=612-2*72; if(w>maxW){w=maxW;h=w/ar;}
+          st.page.drawImage(img,{x:(612-w)/2,y:792-42-h,width:w,height:h}); st.y=792-42-h-24; placed=true; } }catch(e){} }
+      if(!placed){ st.center(nm,{font:B,size:14}); const a=[t.mgmt_addr,[t.mgmt_city,t.mgmt_state].filter(Boolean).join(', ')+' '+t.mgmt_zip].filter(x=>x&&x.trim()).join(' · '); if(a.trim())st.center(a,{size:9.5,color:st.grey}); st.gap(16); }
+      st.line('Date of Notice: '+t.notice_date); st.gap(8*L.ga);
+      st.para('Notice to Residents of Intention to submit a request to '+t.ca_company+' for approval of increase in maximum permissible rents.');
+      st.rich([
+        {text:'Take notice that on '+t.notice_date+' we plan to submit a request for approval of increase in maximum permissible rents for '+nm+' to '+t.ca_company+'.'},
+        {text:'It is important to note that as long as you continue to be eligible under the applicable HUD guidelines for Section 8, your Total Tenant Payment will generally continue to be 30% of your adjusted income. It is also important to note that this rent increase only affects residents who receive subsidy under '+nm+'’s Housing Assistance Payments contract.',font:B}]);
+      st.para('The proposed increase is needed for the following reasons: Fifth-Year Rent Comparability Study Adjustment. The rent increases for which we have requested approval are:',{gapAfter:7});
+      rentTable(st, rec); st.gap(17*L.ga);
+      st.para('A copy of the materials that we are submitting to '+t.ca_company+' in support of our request will be available during normal business hours at the Management Office, '+t.mgmt_addr+', '+t.mgmt_city+', '+t.mgmt_state+' '+t.mgmt_zip+', for a period of 30 days from the date of service of this notice for inspection and copying by tenants and, if tenants wish by legal or other representatives acting for them solely or as a group.');
+      st.para('During a period of 30 days from the date of service, tenants of '+nm+' may submit written comments on the proposed increase to us at the Office, '+t.mgmt_addr+', '+t.mgmt_city+', '+t.mgmt_state+' '+t.mgmt_zip+'. Tenant representatives may assist tenants in preparing those comments. (If at '+t.ca_company+'’s request or otherwise, we make any material change during the comment period in the materials available for inspection or copying, we will notify the tenants of the change and the tenants will have a period of 15 days from the date of additional notice (or the remainder of any applicable period, if longer) to inspect and copy the materials as changed and to submit comments on the proposed rent increase.) The comments will be transmitted to '+t.ca_company+', along with our evaluation of them and our request for the increase.');
+      st.para(t.ca_company+' will approve, adjust upward or downward, or disapprove the proposed increase upon reviewing the request and comments. When '+t.ca_company+' advises us in writing of its decision on our request, you will be notified. If the request is approved, any allowable increase will be put into effect only after a period of at least 30 days from the date you are served with that notice and in accordance with the term of the existing lease.',{gapAfter:L.sig});
+      st.line(t.sender_name); st.line(t.sender_title||'Community Manager');
+      out=doc;
+      if(doc.getPageCount()===1) break;
+    }
+    return await out.save();
   }
 
 
