@@ -1348,7 +1348,7 @@ function renderBody(){const _sy=window.scrollY;const _anchorSel=(_refocusSel&&!_
   wireBody();renderCommand();renderBar();renderRail();renderAttention();
   if(_refocusSel&&!_mouseFocus){try{const _f=document.querySelector(_refocusSel);if(_f&&_f.focus){_f.focus({preventScroll:true});if(/^(INPUT|TEXTAREA)$/.test(_f.tagName)&&typeof _f.setSelectionRange==='function'){const _L=(_f.value||'').length;try{_f.setSelectionRange(_L,_L);}catch(_e){}}}}catch(e){}}_refocusSel=null;
   if(_anchorSel&&_anchorTop!=null){try{const _a2=document.querySelector(_anchorSel);if(_a2){const _nt=_a2.getBoundingClientRect().top;window.scrollTo(0,window.scrollY+(_nt-_anchorTop));}else window.scrollTo(0,_sy);}catch(e){try{window.scrollTo(0,_sy);}catch(_z){}}}else{try{window.scrollTo(0,_sy);}catch(e){}}}
-async function commitPending(){if(!_pending||!_pending.length)return;const keys=_pending;_pending=null;if(zeroUnitBlock(keys))return;if(keys.indexOf('poc.phone')>=0){const _d=(get('poc.phone')||'').replace(/\D/g,'');if(_d.length!==0&&_d.length!==10){setStatus('Enter a complete 10-digit phone before saving.');return;}}keys.forEach(k=>{const m=k.match(/^partb\.writein\.(e1|e2|e3|e4|e5|s1|s2|s3|s4|s5|s6)(\.on)?$/);if(m)clearUncheckedWriteins([m[1]]);});for(const k of keys){const gb=groupOf(k);if(gb){for(const kk of ADDR_GROUPS[gb])form=await store.saveField(form,kk);}else{form=await store.saveField(form,k);}}await refreshSnap();_pendingSnap=null;_refocusSel=refocusSelForKey(keys[0]);renderBody();setStatus('Saved this field to the database.');}
+async function commitPending(){if(!_pending||!_pending.length)return;const keys=_pending;_pending=null;if(handleZeroUnitCommit(keys))return;if(keys.indexOf('poc.phone')>=0){const _d=(get('poc.phone')||'').replace(/\D/g,'');if(_d.length!==0&&_d.length!==10){setStatus('Enter a complete 10-digit phone before saving.');return;}}keys.forEach(k=>{const m=k.match(/^partb\.writein\.(e1|e2|e3|e4|e5|s1|s2|s3|s4|s5|s6)(\.on)?$/);if(m)clearUncheckedWriteins([m[1]]);});for(const k of keys){const gb=groupOf(k);if(gb){for(const kk of ADDR_GROUPS[gb])form=await store.saveField(form,kk);}else{form=await store.saveField(form,k);}}await refreshSnap();_pendingSnap=null;_refocusSel=refocusSelForKey(keys[0]);renderBody();setStatus('Saved this field to the database.');}
 function revertCellIfOver(cell){if(!cell)return false;const inIc=cell.querySelector('.ovic[data-mode="over"] [data-rev]');if(inIc){inIc.click();return true;}const box=cell.getAttribute('data-box');if(box){const note=document.querySelector('.ovnote[data-ov="'+box+'"][data-mode="over"]');if(note){const b=note.querySelector('[data-rev],[data-revaddr]');if(b){b.click();return true;}}}return false;}
 function isToggleKey(k){return /^(check\.\d+|partb\.(equipment|utilities|services)\.\d+|partb\.fuel\.\d+|partb\.writein\.[a-z0-9]+\.(on|fuel))$/.test(k);}
 function fixSavedToggles(){Object.keys(DBSNAP||{}).forEach(k=>{if(isToggleKey(k)){const dv=(DBSNAP[k]&&DBSNAP[k].value!=null)?DBSNAP[k].value:'';form[k]={value:dv,source:'database',saved_at:(DBSNAP[k]&&DBSNAP[k].saved_at)||null,prior_value:null,prior_source:null,db_value:dv};}});}
@@ -1379,7 +1379,7 @@ function wireBody(){
   document.querySelectorAll('[data-wibox]').forEach(bx=>bx.addEventListener('click',e=>{e.preventDefault();const base=bx.getAttribute('data-wibox');if(!get(base))return;const on=get(base+'.on')==='1';_pendingSnap=snapOf([base+'.on']);form=store.editForm(form,base+'.on',on?'':'1');_pending=[base+'.on'];_refocusSel='[data-wibox="'+base+'"]';renderBody();}));
   document.querySelectorAll('button[data-rev]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();b.getAttribute('data-rev').split(',').forEach(k=>coupledKeys(k).forEach(x=>store.revertForm(form,x)));renderBody();setStatus('Reverted to the on-file value.');}));
   document.querySelectorAll('button[data-revaddr]').forEach(b=>b.addEventListener('click',()=>{const _box=b.getAttribute('data-revaddr');const g=ADDR_GROUPS[_box]||ADDR;g.forEach(k=>store.revertForm(form,k));if(_box==='tenant.mgmt')store.revertForm(form,'tenant.mgmt_source');renderBody();setStatus('Address reverted.');}));
-  document.querySelectorAll('button[data-save1]').forEach(b=>b.addEventListener('click',async e=>{e.preventDefault();e.stopPropagation();const keys=[];b.getAttribute('data-save1').split(',').forEach(_k=>coupledKeys(_k).forEach(x=>{if(keys.indexOf(x)<0)keys.push(x);}));if(zeroUnitBlock(keys))return;if(keys.indexOf('poc.phone')>=0){const _d=(get('poc.phone')||'').replace(/\D/g,'');if(_d.length!==0&&_d.length!==10){setStatus('Enter a complete 10-digit phone before saving.');return;}}keys.forEach(k=>{const m=k.match(/^partb\.writein\.(e1|e2|e3|e4|e5|s1|s2|s3|s4|s5|s6)(\.on)?$/);if(m)clearUncheckedWriteins([m[1]]);});for(const k of keys)form=await store.saveField(form,k);await refreshSnap();renderBody();setStatus('Saved just that field to the database.');}));
+  document.querySelectorAll('button[data-save1]').forEach(b=>b.addEventListener('click',async e=>{e.preventDefault();e.stopPropagation();const keys=[];b.getAttribute('data-save1').split(',').forEach(_k=>coupledKeys(_k).forEach(x=>{if(keys.indexOf(x)<0)keys.push(x);}));if(handleZeroUnitCommit(keys))return;if(keys.indexOf('poc.phone')>=0){const _d=(get('poc.phone')||'').replace(/\D/g,'');if(_d.length!==0&&_d.length!==10){setStatus('Enter a complete 10-digit phone before saving.');return;}}keys.forEach(k=>{const m=k.match(/^partb\.writein\.(e1|e2|e3|e4|e5|s1|s2|s3|s4|s5|s6)(\.on)?$/);if(m)clearUncheckedWriteins([m[1]]);});for(const k of keys)form=await store.saveField(form,k);await refreshSnap();renderBody();setStatus('Saved just that field to the database.');}));
   document.querySelectorAll('button[data-save1addr]').forEach(b=>b.addEventListener('click',async()=>{const _box=b.getAttribute('data-save1addr');const g=ADDR_GROUPS[_box]||ADDR;for(const k of g)form=await store.saveField(form,k);if(_box==='tenant.mgmt')form=await store.saveField(form,'tenant.mgmt_source');await refreshSnap();renderBody();setStatus('Saved the address to the database.');}));
   document.querySelectorAll('.uatrigger').forEach(t=>{const d=t.closest('.uadrop');if(!d)return;
     const tog=()=>{const open=d.classList.contains('open');document.querySelectorAll('.uadrop.open').forEach(x=>x.classList.remove('open'));if(!open)d.classList.add('open');};
@@ -1519,7 +1519,20 @@ function makeThumb(dataUrl,cb){try{const img=new Image();img.onload=()=>{const s
 function nonrevEmpty(i){return ['use','br','ba','rent'].every(s=>{const v=get('nonrev.'+i+'.'+s);return v===''||v==null;});}
 function nonrevHasData(i){return ['use','br','ba','rent'].some(s=>{const v=get('nonrev.'+i+'.'+s);return v!==''&&v!=null;});}
 function lihtcHasData(i){return ['br','ba','avg_rent'].some(s=>{const v=get('lihtc.'+i+'.'+s);return v!==''&&v!=null;});}
-function zeroUnitBlock(keys){const zk=keys.find(k=>/^(units|nonrev|lihtc)\.\d+\.num_units$/.test(k));if(zk&&numf(get(zk))<=0){setStatus('Cannot save zero units — enter a unit count or delete the row.');return true;}return false;}
+function handleZeroUnitCommit(keys){const zk=keys.find(k=>/^(units|nonrev|lihtc)\.\d+\.num_units$/.test(k));
+  if(!zk||numf(get(zk))>0)return false;
+  const m=zk.match(/^(units|nonrev|lihtc)\.(\d+)\./);const fam=m[1],i=+m[2];
+  if(fam==='units'&&i===UNITS[0]){setStatus('Cannot commit zero units to the database — the first unit type needs a unit count.');return true;}
+  const label=fam==='units'?'unit type':(fam==='nonrev'?'non-revenue unit':'non-Section 8 unit type');
+  dialogConfirm('Delete this '+label+'?','Committing 0 units deletes this '+label+' from the database — the row and its data are removed. This cannot be undone.','Delete & save',true,async()=>{
+    Object.keys(form).forEach(k=>{if(k.indexOf(fam+'.'+i+'.')===0)delete form[k];});
+    if(fam==='units')UNITS=UNITS.filter(x=>x!==i);
+    else if(fam==='nonrev'){NONREV=NONREV.filter(x=>x!==i);if(!NONREV.length){form=store.editForm(form,'nonrev.enabled','');form=await store.saveField(form,'nonrev.enabled');}}
+    else{LIHTC=LIHTC.filter(x=>x!==i);if(!LIHTC.length){form=store.editForm(form,'lihtc.enabled','');form=await store.saveField(form,'lihtc.enabled');}}
+    if(mpdb&&activePid)await mpdb.pruneUnitRows(activePid,UNITS,NONREV,LIHTC);
+    await refreshSnap();renderBody();setStatus('Zero-unit '+label+' deleted and saved.');
+  });
+  return true;}
 function unitHasData(i){return ['br','ba','current','proposed','ua_exec','ua_rcs','ua_custom','safmr_hud','safmr_rcs','safmr_custom'].some(s=>{const v=get('units.'+i+'.'+s);return v!==''&&v!=null;});}
 function countlessUnits(){return UNITS.filter(i=>numf(get('units.'+i+'.num_units'))<=0);}
 async function saveNow(afterSave){clearUncheckedWriteins(['e1','e2','e3','e4','e5','s1','s2','s3','s4','s5','s6']);
@@ -1530,7 +1543,9 @@ async function saveNow(afterSave){clearUncheckedWriteins(['e1','e2','e3','e4','e
   if(mpdb&&activePid)await mpdb.pruneUnitRows(activePid,UNITS,NONREV,LIHTC);
   await refreshSnap();deriveUnits();if(afterSave)afterSave();}
 function requestSave(afterSave){
-  const mu=countlessUnits().filter(unitHasData);
+  const first=UNITS[0];
+  if(unitHasData(first)&&numf(get('units.'+first+'.num_units'))<=0){setStatus('Cannot commit zero units to the database — the first unit type needs a unit count.');return;}
+  const mu=countlessUnits().filter(unitHasData).filter(i=>i!==first);
   const mn=NONREV.filter(i=>numf(get('nonrev.'+i+'.num_units'))<=0).filter(nonrevHasData);
   const ml=LIHTC.filter(i=>numf(get('lihtc.'+i+'.num_units'))<=0).filter(lihtcHasData);
   const total=mu.length+mn.length+ml.length;
@@ -1570,6 +1585,7 @@ function showPackageModal(nm,docs,combined){
 }
 async function genPackage(){
   if(!(window.RCSGen&&window.PDFLib)){setStatus('Generator still loading - try again in a moment.');return;}
+  if(numf(get('units.'+UNITS[0]+'.num_units'))<=0){setStatus('Cannot generate the package with zero units — the first unit type needs a unit count.');return;}
   const T=window.RCSTemplates||{};
   try{ setStatus('Generating package...'); const rec=formRec(); const logo=b64ToBytes(LOGO_B64);
     let lh=null; try{ const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null; if(L&&L.thumb)lh=dataUrlToBytes(L.thumb); }catch(e){}
