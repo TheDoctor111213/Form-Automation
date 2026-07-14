@@ -349,7 +349,7 @@ function renderCommand(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.cei
      ${chk(ua[0],'Utility allowance',ua[1])}${chk(a.safmrMissing?'warn':(a.safmrOver?'warn':(a.safmrConflict?'info':'ok')),'SAFMR (150% ceiling)',a.safmrMissing?'enter or pull SAFMR per unit type':(a.safmrOver?(a.safmrOver+' type'+(a.safmrOver>1?'s':'')+' over 150% SAFMR'):(a.safmrConflict?'HUD vs RCS differ — using HUD':'per unit type · HUD')))}</div></div>
    <div class="ccard"><div class="cck">THIS PACKAGE</div><div class="cctitle" style="font-size:15px">${_rcsUpload?'RCS report uploaded':'RCS report needed'}</div><div class="ccsub">${_rcsUpload?esc(_rcsUpload.name)+' — goes in as document 04':'Upload the completed RCS report in Section 1 — it becomes document 04 of the package.'}</div>
      <div class="ccsub" style="margin-top:7px;color:#33405c"><b>The 6-document package</b></div><div class="drafts">${[['Cover letter (CA)',1],['Owner cover letter',1],['Owner’s checklist',1],['RCS report (uploaded PDF)',_rcsUpload?1:0],['Draft rent schedule',1],['Tenant notice',1]].map(d=>'<span>'+(d[1]?'✓ ':'○ ')+d[0]+'</span>').join('')}</div>
-     <div class="wb">Documents are generated from the form exactly as shown — use “Update database” to save your inputs. A Rent Analysis workbook (Excel) downloads separately; it isn’t part of the PDF package.</div></div>`;}
+     <div class="wb">Documents are generated from the form exactly as shown — use “Update database” to save your inputs. The RCS Package folder download bundles everything — the combined PDF, each document, and the Rent Analysis workbook.</div></div>`;}
 function chk(st,name,note){const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const cl=st==='warn'?'warn':(st==='info'?'info':'ok');return `<div class="chk"><span class="${cl}">${ic}</span><div><b>${name}</b><div class="sub">${note}</div></div></div>`;}
 
 function isStateKey(k){return /\.(ua_reviewed|safmr_reviewed|type_reviewed|num_reviewed|ua_custom|safmr_custom)$/.test(k)||k==='tenant.mgmt_source'||k==='poc.mode'||/^poc\.custom_/.test(k)||k==='rent_schedule.date_eff_source'||k==='rent_schedule.date_eff_custom';}
@@ -634,26 +634,39 @@ function dlPdf(bytes,name){dlFile(bytes,name,'application/pdf');}
 function formRec(){const rec={};for(const k in form)rec[k]=form[k].value;return rec;}
 async function genCoverLetter(){if(!(window.RCSGen&&window.PDFLib)){setStatus('Generator still loading \u2014 try again in a moment.');return;}try{setStatus('Generating cover letter\u2026');const bytes=await window.RCSGen.coverLetter(formRec(),b64ToBytes(LOGO_B64));dlPdf(bytes,(get('property.name')||'Property')+' \u2014 Cover Letter.pdf');setStatus('Cover letter downloaded.');}catch(e){setStatus('Generation failed: '+((e&&e.message)||e));}}
 function dataUrlToBytes(u){try{const i=String(u||'').indexOf(',');if(i<0)return null;return b64ToBytes(u.slice(i+1));}catch(e){return null;}}
-async function combinePdfs(list){const {PDFDocument}=window.PDFLib;const out=await PDFDocument.create();for(const b of list){if(!b)continue;const src=await PDFDocument.load(b,{ignoreEncryption:true});const pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p));}return await out.save();}
+async function combinePdfs(list){const {PDFDocument}=window.PDFLib;const out=await PDFDocument.create();for(const b of list){if(!b)continue;const src=await PDFDocument.load(b,{ignoreEncryption:true,parseSpeed:Infinity});const pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p));}return await out.save();}
 function showPackageModal(nm,docs,combined,missingRcs){
   const rows=docs.map((d,i)=>'<button class="btn sm" data-dldoc="'+i+'" style="justify-content:flex-start">'+esc(d.label)+'</button>').join('');
   const miss=missingRcs?'<div class="sub" style="color:#b45309">\u26a0 Document 04 (RCS report) isn\u2019t included \u2014 upload it in Section 1 and regenerate.</div>':'';
-  modal('<div class="dlg-t">Package generated</div><div class="dlg-b">'+esc(nm)+' - '+docs.length+' documents. Download the combined file, or any individual document.</div><div style="display:flex;flex-direction:column;gap:7px;margin-top:14px"><button class="btn p" id="dlCombined">Combined package (PDF)</button>'+rows+miss+'<button class="btn excel" id="dlXlsx">Rent Analysis workbook (Excel) \u2014 downloads separately, not in the package</button></div><div class="dlg-row"><span class="dlg-sp"></span><button class="btn" id="dlgCancel">Close</button></div>');
+  modal('<div class="dlg-t">Package generated</div><div class="dlg-b">'+esc(nm)+' - '+docs.length+' documents. Download the combined file, or any individual document.</div><div style="display:flex;flex-direction:column;gap:7px;margin-top:14px"><button class="btn p" id="dlCombined">Combined package (PDF)</button>'+rows+miss+'<button class="btn excel" id="dlXlsx">Rent Analysis workbook (Excel) \u2014 download it on its own</button><button class="btn p" id="dlFolder" style="margin-top:11px;display:inline-flex;align-items:center;justify-content:center;gap:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Download the RCS Package folder</button></div><div class="dlg-row"><span class="dlg-sp"></span><button class="btn" id="dlgCancel">Close</button></div>');
   el('dlgCancel').onclick=closeModal;
   const cbn=el('dlCombined');if(cbn)cbn.onclick=()=>dlPdf(combined,nm+' - RCS Package.pdf');
   const xb=el('dlXlsx');if(xb)xb.onclick=()=>genRentAnalysis();
+  const fb=el('dlFolder');if(fb)fb.onclick=()=>dlPackageFolder(nm,docs,combined);
   document.querySelectorAll('[data-dldoc]').forEach(b=>b.onclick=()=>{const d=docs[+b.getAttribute('data-dldoc')];dlPdf(d.bytes,d.file+'.pdf');});
 }
+async function dlPackageFolder(nm,docs,combined){
+  if(!(window.RCSXlsx&&window.RCSXlsx.makeZip)){setStatus('Packager still loading \u2014 try again in a moment.');return;}
+  try{setStatus('Packing the RCS Package folder\u2026');
+    const files=[{name:'RCS Package/'+nm+' - RCS Package.pdf',data:combined}];
+    docs.forEach(d=>files.push({name:'RCS Package/'+d.file+'.pdf',data:d.bytes}));
+    let xlNote='';
+    try{files.push({name:'RCS Package/'+nm+' - RCS Analysis.xlsx',data:await buildRentAnalysisBytes()});}
+    catch(e){xlNote=' (the Rent Analysis workbook could not be built: '+((e&&e.message)||e)+')';}
+    dlFile(window.RCSXlsx.makeZip(files),nm+' - RCS Package.zip','application/zip');
+    setStatus('RCS Package folder downloaded \u2014 the combined report, each document, and the Rent Analysis workbook, all in one folder.'+xlNote);
+  }catch(e){setStatus('Folder download failed: '+((e&&e.message)||e));}}
+function buildRentAnalysisBytes(){
+  const nn=v=>{const n=numf(v);return n>0?n:null;};
+  const rows=UNITS.map(i=>({type:(get('units.'+i+'.br')||'')+(get('units.'+i+'.ba')?'/'+get('units.'+i+'.ba'):''),
+    units:nn(get('units.'+i+'.num_units')),cur:nn(get('units.'+i+'.current')),pro:nn(get('units.'+i+'.proposed')),
+    ua:uaResolvedOf(i)>0?uaResolvedOf(i):null,safmr150:safmrResolvedOf(i)>0?safmrResolvedOf(i):null}));
+  return window.RCSXlsx.rentAnalysis({propertyName:get('property.name')||'Property',apprFirm:get('appr.firm')||'',rows});}
 async function genRentAnalysis(){
   if(!window.RCSXlsx){setStatus('Excel generator still loading \u2014 try again in a moment.');return;}
   try{setStatus('Building the Rent Analysis workbook\u2026');
-    const nn=v=>{const n=numf(v);return n>0?n:null;};
-    const rows=UNITS.map(i=>({type:(get('units.'+i+'.br')||'')+(get('units.'+i+'.ba')?'/'+get('units.'+i+'.ba'):''),
-      units:nn(get('units.'+i+'.num_units')),cur:nn(get('units.'+i+'.current')),pro:nn(get('units.'+i+'.proposed')),
-      ua:uaResolvedOf(i)>0?uaResolvedOf(i):null,safmr150:safmrResolvedOf(i)>0?safmrResolvedOf(i):null}));
     const N=get('property.name')||'Property';
-    const bytes=await window.RCSXlsx.rentAnalysis({propertyName:N,apprFirm:get('appr.firm')||'',rows});
-    dlFile(bytes,N+' - RCS Analysis.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    dlFile(await buildRentAnalysisBytes(),N+' - RCS Analysis.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     setStatus('Rent Analysis workbook downloaded.'+(UNITS.length>6?' Note: the template holds 6 unit types \u2014 '+(UNITS.length-6)+' extra row(s) were left off.':''));
   }catch(e){setStatus('Excel generation failed: '+((e&&e.message)||e));}
 }

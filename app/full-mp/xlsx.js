@@ -80,5 +80,5 @@ async function rentAnalysis(opts){
   F('xl/sharedStrings.xml').data=enc.encode(ss);
   F('xl/workbook.xml').data=enc.encode(wb);
   return buildZip(files);}
-window.RCSXlsx={rentAnalysis};
+window.RCSXlsx={rentAnalysis,makeZip:buildZip};
 })();

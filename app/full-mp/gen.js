@@ -109,7 +109,7 @@
 
   async function fillChecklist(templateBytes, rec){
     const { PDFDocument, StandardFonts, TextAlignment } = PL(); const t=resolve(rec);
-    const doc=await PDFDocument.load(templateBytes); const form=doc.getForm();
+    const doc=await PDFDocument.load(templateBytes,{parseSpeed:Infinity}); const form=doc.getForm();
     const times=await doc.embedFont(StandardFonts.TimesRoman), timesB=await doc.embedFont(StandardFonts.TimesRomanBold);
     try{ const pn=form.getTextField('Property Name'); pn.setText(t.property_name); pn.setAlignment(TextAlignment.Center); pn.setFontSize(18); pn.updateAppearances(timesB); }catch(e){}
     try{ const d=form.getTextField('Date'); d.setText(t.sign_date); d.setFontSize(12); d.updateAppearances(times); }catch(e){}
@@ -156,7 +156,7 @@
 
   async function fillRentSchedule(templateBytes, rec){
     const { PDFDocument, StandardFonts } = PL();
-    const doc=await PDFDocument.load(templateBytes); const form=doc.getForm();
+    const doc=await PDFDocument.load(templateBytes,{parseSpeed:Infinity}); const form=doc.getForm();
     const font=await doc.embedFont(StandardFonts.Helvetica);
     const g=k=>rec[k]!=null?String(rec[k]):'';
     const nmv=v=>parseFloat(String(v||'').replace(/[^0-9.\-]/g,''))||0;
