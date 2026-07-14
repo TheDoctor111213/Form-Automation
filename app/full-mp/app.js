@@ -131,13 +131,14 @@ function pocCell(){const k='poc.name';const contacts=(mpdb?mpdb.listContacts():[
    a pending change (Enter commits every filled cell, Esc restores what was
    there, clicking anywhere else annuls the pending group), and the name cell's
    revert / save-this-field buttons act on every autofilled key. */
+function dirAddrLine(c){return [c.addr_street,c.addr_city,[c.addr_state,c.addr_zip].filter(Boolean).join(' ')].filter(s=>s&&String(s).trim()).join(', ');}
 const DIR_PICK={
  'appr.name':{kind:'appraiser',one:'appraiser',keys:['appr.name','appr.firm','appr.email','appr.phone','appr.addr_street','appr.addr_city','appr.addr_state','appr.addr_zip'],modeKeys:['appr.name'],
   apply:ct=>dirFill([['appr.name',ct.name],['appr.firm',ct.firm],['appr.email',ct.email],['appr.phone',fmtPhone(ct.phone||'')],['appr.addr_street',ct.addr_street],['appr.addr_city',ct.addr_city],['appr.addr_state',ct.addr_state],['appr.addr_zip',ct.addr_zip]]),
-  sub:ct=>ct.firm||ct.email||''},
+  sub:ct=>[ct.firm,dirAddrLine(ct)].filter(Boolean).join(' \u00b7 ')||ct.email||''},
  'ca.name':{kind:'ca',one:'contract administrator',keys:['ca.prefix','ca.name','ca.position','ca.org','ca.addr_street','ca.addr_city','ca.addr_state','ca.addr_zip'],modeKeys:['ca.prefix','ca.name'],
   apply:ct=>dirFill([['ca.prefix',ct.prefix],['ca.name',ct.name],['ca.position',ct.title],['ca.org',ct.org],['ca.addr_street',ct.addr_street],['ca.addr_city',ct.addr_city],['ca.addr_state',ct.addr_state],['ca.addr_zip',ct.addr_zip]]),
-  sub:ct=>[ct.title,ct.org].filter(Boolean).join(' \u00b7 ')},
+  sub:ct=>[ct.title,ct.org,dirAddrLine(ct)].filter(Boolean).join(' \u00b7 ')},
  'sig.name':{kind:'signatory',one:'signatory',keys:['sig.name','sig.title'],modeKeys:['sig.name'],
   apply:ct=>dirFill([['sig.name',ct.name],['sig.title',ct.title]]),
   sub:ct=>ct.title||''},
@@ -693,13 +694,13 @@ window.addEventListener('DOMContentLoaded',async()=>{
 function openContacts(){renderContacts();show('Contacts');}
 const DIR_SECTIONS=[
  {kind:'appraiser',title:'Appraisers',one:'appraiser',add:'+ Add appraiser',
-  fields:[['name','Name'],['firm','Company'],['addr_street','Street'],['addr_city','City'],['addr_state','State'],['addr_zip','ZIP'],['email','Email'],['phone','Phone']],
-  sub:c=>[c.firm,c.email,c.phone?fmtPhone(c.phone):''].filter(Boolean).join('  \u00b7  ')},
+  rows:[[['name','Name']],[['firm','Company']],[['addr_street','Street']],[['addr_city','City'],['addr_state','State',STATES,'nrw'],['addr_zip','ZIP',null,'nrw']],[['email','Email']],[['phone','Phone']]],
+  sub:c=>[c.firm,dirAddrLine(c),c.email,c.phone?fmtPhone(c.phone):''].filter(Boolean).join('  \u00b7  ')},
  {kind:'ca',title:'Contract administrators',one:'contract administrator',add:'+ Add contract administrator',
-  fields:[['prefix','Prefix (Ms./Mr./Dr./Mx.)'],['name','Name'],['title','Position'],['org','Organization'],['addr_street','Street'],['addr_city','City'],['addr_state','State'],['addr_zip','ZIP']],
-  sub:c=>[c.title,c.org].filter(Boolean).join('  \u00b7  ')},
+  rows:[[['prefix','Prefix',['Ms.','Mr.','Dr.','Mx.'],'nrw'],['name','Name']],[['title','Position']],[['org','Organization']],[['addr_street','Street']],[['addr_city','City'],['addr_state','State',STATES,'nrw'],['addr_zip','ZIP',null,'nrw']]],
+  sub:c=>[c.title,c.org,dirAddrLine(c)].filter(Boolean).join('  \u00b7  ')},
  {kind:'signatory',title:'Signatories',one:'signatory',add:'+ Add signatory',
-  fields:[['name','Name'],['title','Title']],
+  rows:[[['name','Name']],[['title','Title']]],
   sub:c=>c.title||''},
 ];
 function renderContacts(){const list=mpdb.listContacts();
@@ -715,12 +716,16 @@ function renderContacts(){const list=mpdb.listContacts();
   document.querySelectorAll('[data-diradd]').forEach(b=>b.onclick=()=>dirDialog(b.getAttribute('data-diradd'),null));
   document.querySelectorAll('[data-dired]').forEach(b=>b.onclick=()=>dirDialog(b.getAttribute('data-dkind'),dirList(b.getAttribute('data-dkind')).find(x=>x.id===b.getAttribute('data-dired'))));
   document.querySelectorAll('[data-dirdel]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-dirdel');const S=DIR_SECTIONS.find(x=>x.kind===b.getAttribute('data-dkind'));const c=dirList(S.kind).find(x=>x.id===id);dialogConfirm('Delete '+S.one,'Remove <b>'+esc(c&&c.name?c.name:'this contact')+'</b> from '+S.title.toLowerCase()+'?','Delete',true,async()=>{await mpdb.deleteDir(id);renderContacts();});});}
-function dirDialog(kind,c){const S=DIR_SECTIONS.find(x=>x.kind===kind);c=c||{};
-  modal('<div class="dlg-t">'+(c.id?'Edit ':'Add ')+esc(S.one)+'</div>'+S.fields.map(f=>'<div class="dlg-field"><label>'+esc(f[1])+'</label><input id="dc_'+f[0]+'" value="'+esc(f[0]==='phone'&&c[f[0]]?fmtPhone(c[f[0]]):(c[f[0]]||''))+'" autocomplete="off"></div>').join('')+'<div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Save</button></div>');
+function dirDialog(kind,c){const S=DIR_SECTIONS.find(x=>x.kind===kind);c=c||{};const FLDS=S.rows.flat();
+  const cell=f=>{const v=f[0]==='phone'&&c[f[0]]?fmtPhone(c[f[0]]):(c[f[0]]||'');
+    const inner=f[2]?('<select id="dc_'+f[0]+'">'+[''].concat(f[2]).map(o=>'<option value="'+esc(o)+'"'+(String(v)===o?' selected':'')+'>'+(o===''?'\u2014':esc(o))+'</option>').join('')+'</select>')
+      :('<input id="dc_'+f[0]+'" value="'+esc(v)+'" autocomplete="off">');
+    return '<div class="dlg-field'+(f[3]?' '+f[3]:'')+'"><label>'+esc(f[1])+'</label>'+inner+'</div>';};
+  modal('<div class="dlg-t">'+(c.id?'Edit ':'Add ')+esc(S.one)+'</div>'+S.rows.map(row=>row.length>1?('<div class="dlg-2">'+row.map(cell).join('')+'</div>'):cell(row[0])).join('')+'<div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Save</button></div>');
   const pp=el('dc_phone');if(pp&&pp.addEventListener)pp.addEventListener('input',()=>{pp.value=fmtPhone(pp.value);});
-  S.fields.forEach(f=>{const ff=el('dc_'+f[0]);if(ff&&ff.addEventListener)ff.addEventListener('keydown',ev=>{if(ev.key!=='Enter')return;ev.preventDefault();const d=pp?(pp.value||'').replace(/\D/g,''):'';if(!pp||d.length===0||d.length===10)el('dlgOk').click();});});
+  FLDS.forEach(f=>{const ff=el('dc_'+f[0]);if(ff&&ff.addEventListener)ff.addEventListener('keydown',ev=>{if(ev.key!=='Enter')return;ev.preventDefault();const d=pp?(pp.value||'').replace(/\D/g,''):'';if(!pp||d.length===0||d.length===10)el('dlgOk').click();});});
   el('dlgCancel').onclick=closeModal;
-  el('dlgOk').onclick=async()=>{const patch={};S.fields.forEach(f=>{patch[f[0]]=(el('dc_'+f[0]).value||'').trim();});closeModal();if(c.id)await mpdb.updateDir(c.id,patch);else await mpdb.addDir(kind,patch);renderContacts();};}
+  el('dlgOk').onclick=async()=>{const patch={};FLDS.forEach(f=>{patch[f[0]]=(el('dc_'+f[0]).value||'').trim();});closeModal();if(c.id)await mpdb.updateDir(c.id,patch);else await mpdb.addDir(kind,patch);renderContacts();};}
 function contactDialog(c){c=c||{};
   modal('<div class="dlg-t">'+(c.id?'Edit contact':'Add contact')+'</div><div class="dlg-field"><label>Name</label><input id="ccN" value="'+esc(c.name||'')+'" autocomplete="off"></div><div class="dlg-field"><label>Email</label><input id="ccE" value="'+esc(c.email||'')+'" autocomplete="off"></div><div class="dlg-field"><label>Phone</label><input id="ccP" value="'+esc(c.phone?fmtPhone(c.phone):'')+'" autocomplete="off"></div><div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Save</button></div>');
   { const pp=el('ccP'); if(pp){ pp.value=fmtPhone(pp.value||''); if(pp.addEventListener) pp.addEventListener('input',()=>{ pp.value=fmtPhone(pp.value); }); } }

@@ -72,7 +72,7 @@ body.scrolled #ccbar{transform:translateY(0);opacity:1}
 .footer{display:flex;gap:12px;align-items:center;margin-top:4px}
 table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e6ebf3;border-radius:10px;overflow:hidden} th,td{text-align:left;padding:9px 13px;border-bottom:1px solid #eef1f6} th{font-size:10px;letter-spacing:.4px;color:#8791a5;text-transform:uppercase}
 @media(max-width:1050px){.cc{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.rail{position:static;max-height:none}}
-.ovic{display:inline-flex;gap:3px;margin-left:6px;margin-right:5px;flex:0 0 auto;align-items:center} .cb .ovic{margin-left:4px} .miniic{border:1px solid #d8b483;background:#fbf1e6;color:#b45309;border-radius:4px;cursor:pointer;font-size:11px;line-height:1;padding:3px 5px} .miniic.sv{border-color:#9cc3a8;background:#eefaf1;color:#166534}.lcmain{display:flex;flex-direction:column;gap:3px;min-width:0} .rmetric{font-size:11.5px;color:#166534;font-weight:600}.ualab{display:inline-flex;align-items:center;gap:2px;min-width:0;overflow:hidden;white-space:nowrap;flex:1} .uac-in{border:none;background:transparent;font:inherit;flex:1;min-width:36px;height:20px;line-height:20px;outline:none;border-bottom:1px dashed #b45309;color:#1f2937;padding:0 2px} .srcedit{border-bottom-color:#c3cbd9} .mgmtcell .uadrop{flex:1;min-width:0} .mgmtcell .uatrigger{padding:0 11px} .mgmt-in{border:none;background:transparent;font:inherit;flex:1;height:20px;line-height:20px;outline:none;min-width:0} .srctag{color:#8791a5;font-size:10.5px;margin-left:6px;flex:0 0 auto} .mgmtprop{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.urev.sv{border-color:#9cc3a8;background:#eefaf1;color:#166534}.uadrop.cs{position:relative} .brba .uadrop.cs{flex:1;min-width:0} .uadrop.cs.csnarrow{flex:0 0 auto} .uadrop.cs .uatrigger{padding:0 10px} .uadrop.cs.csnarrow .uatrigger{padding:0 8px;gap:4px} .fbox>.uadrop.cs.csnarrow{border-right:1px solid #e0e5ee;min-width:56px} .brba .uadrop.cs .uatrigger{padding:0 8px}.uasub{display:block;font-size:11px;color:#7c86a2;white-space:nowrap;margin-top:1px}
+.ovic{display:inline-flex;gap:3px;margin-left:6px;margin-right:5px;flex:0 0 auto;align-items:center} .cb .ovic{margin-left:4px} .miniic{border:1px solid #d8b483;background:#fbf1e6;color:#b45309;border-radius:4px;cursor:pointer;font-size:11px;line-height:1;padding:3px 5px} .miniic.sv{border-color:#9cc3a8;background:#eefaf1;color:#166534}.lcmain{display:flex;flex-direction:column;gap:3px;min-width:0} .rmetric{font-size:11.5px;color:#166534;font-weight:600}.ualab{display:inline-flex;align-items:center;gap:2px;min-width:0;overflow:hidden;white-space:nowrap;flex:1} .uac-in{border:none;background:transparent;font:inherit;flex:1;min-width:36px;height:20px;line-height:20px;outline:none;border-bottom:1px dashed #b45309;color:#1f2937;padding:0 2px} .srcedit{border-bottom-color:#c3cbd9} .mgmtcell .uadrop{flex:1;min-width:0} .mgmtcell .uatrigger{padding:0 11px} .mgmt-in{border:none;background:transparent;font:inherit;flex:1;height:20px;line-height:20px;outline:none;min-width:0} .srctag{color:#8791a5;font-size:10.5px;margin-left:6px;flex:0 0 auto} .mgmtprop{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.urev.sv{border-color:#9cc3a8;background:#eefaf1;color:#166534}.uadrop.cs{position:relative} .brba .uadrop.cs{flex:1;min-width:0} .uadrop.cs.csnarrow{flex:0 0 auto} .uadrop.cs .uatrigger{padding:0 10px} .uadrop.cs.csnarrow .uatrigger{padding:0 8px;gap:4px} .fbox>.uadrop.cs.csnarrow{border-right:1px solid #e0e5ee;min-width:56px} .brba .uadrop.cs .uatrigger{padding:0 8px}.uasub{display:block;font-size:11px;color:#7c86a2;white-space:nowrap;margin-top:1px;overflow:hidden;text-overflow:ellipsis}
 .hdrmid{display:flex;align-items:center;gap:18px;margin-left:auto;margin-right:22px}
 .hprop{font-size:14px;font-weight:700;color:#fff;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hcyc{display:flex;align-items:center;gap:7px;font-size:10.5px;color:#9fb2cc;text-transform:uppercase;letter-spacing:.6px}
@@ -217,6 +217,9 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
 .dlg-field{margin-top:15px}.dlg-field label{font-size:11px;font-weight:700;color:#5b6577;display:block;margin-bottom:6px}
 .dlg-field input{width:100%;font:inherit;font-size:14px;padding:10px 12px;border:1px solid #c7cede;border-radius:9px;outline:none}
 .dlg-field input:focus{border-color:#1e3a5f;box-shadow:0 0 0 3px rgba(30,58,95,.10)}
+.dlg-field select{width:100%;font:inherit;font-size:14px;padding:10px 9px;border:1px solid #c7cede;border-radius:9px;outline:none;background:#fff;color:#1f2937}
+.dlg-field select:focus{border-color:#1e3a5f;box-shadow:0 0 0 3px rgba(30,58,95,.10)}
+.dlg-2{display:flex;gap:9px}.dlg-2 .dlg-field{flex:1;min-width:0}.dlg-2 .dlg-field.nrw{flex:0 0 96px}
 .dlg-row{display:flex;align-items:center;gap:9px;margin-top:22px}.dlg-sp{flex:1}
 .btn.danger{background:#fff;color:#b91c1c;border-color:#e6b3b3}.btn.danger:hover{background:#fdecec}
 
@@ -247,7 +250,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
 .poccell{overflow:visible}.poccell .uatrigger{padding:0 10px}.pocpick{flex:0 0 auto;align-self:stretch;display:flex;align-items:center;border-left:1px solid #e0e5ee}.pocpick .uatrigger{padding:0 12px;outline:none;color:#9aa4b8}.pocpick .uamenu{left:auto;right:0;min-width:252px;max-width:320px;padding:5px}.pocpick .uaopt{padding:8px 10px;border-radius:7px;font-weight:600;color:#1f2937}.pocpick .uaopt .uasub{font-weight:400;color:#8791a5}
 .pocname-in{flex:1;border:none;background:transparent;font:inherit;font-size:14px;padding:9px 11px;outline:none;color:#1f2937;min-width:0}
 .crow2{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e6ebf3;border-radius:10px;padding:12px 15px;margin-bottom:8px}
-.cc-main{flex:1;min-width:0}.cc-name{font-size:14px;font-weight:700;color:#1f2937}.cc-sub{font-size:12px;color:#7c86a2;margin-top:2px}
+.cc-main{flex:1;min-width:0}.cc-name{font-size:14px;font-weight:700;color:#1f2937}.cc-sub{font-size:12px;color:#7c86a2;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #viewAuth{min-height:100vh;display:flex;flex-direction:column}
 .authwrap{flex:1;display:flex;align-items:center;justify-content:center;padding:34px}
 .authcard{background:#fff;border:1px solid #e6ebf3;border-radius:15px;padding:30px 32px;width:388px;max-width:calc(100vw - 32px);box-shadow:0 12px 40px rgba(15,30,60,.10)}
@@ -1159,13 +1162,14 @@ function pocCell(){const k='poc.name';const contacts=(mpdb?mpdb.listContacts():[
    a pending change (Enter commits every filled cell, Esc restores what was
    there, clicking anywhere else annuls the pending group), and the name cell's
    revert / save-this-field buttons act on every autofilled key. */
+function dirAddrLine(c){return [c.addr_street,c.addr_city,[c.addr_state,c.addr_zip].filter(Boolean).join(' ')].filter(s=>s&&String(s).trim()).join(', ');}
 const DIR_PICK={
  'appr.name':{kind:'appraiser',one:'appraiser',keys:['appr.name','appr.firm','appr.email','appr.phone','appr.addr_street','appr.addr_city','appr.addr_state','appr.addr_zip'],modeKeys:['appr.name'],
   apply:ct=>dirFill([['appr.name',ct.name],['appr.firm',ct.firm],['appr.email',ct.email],['appr.phone',fmtPhone(ct.phone||'')],['appr.addr_street',ct.addr_street],['appr.addr_city',ct.addr_city],['appr.addr_state',ct.addr_state],['appr.addr_zip',ct.addr_zip]]),
-  sub:ct=>ct.firm||ct.email||''},
+  sub:ct=>[ct.firm,dirAddrLine(ct)].filter(Boolean).join(' \u00b7 ')||ct.email||''},
  'ca.name':{kind:'ca',one:'contract administrator',keys:['ca.prefix','ca.name','ca.position','ca.org','ca.addr_street','ca.addr_city','ca.addr_state','ca.addr_zip'],modeKeys:['ca.prefix','ca.name'],
   apply:ct=>dirFill([['ca.prefix',ct.prefix],['ca.name',ct.name],['ca.position',ct.title],['ca.org',ct.org],['ca.addr_street',ct.addr_street],['ca.addr_city',ct.addr_city],['ca.addr_state',ct.addr_state],['ca.addr_zip',ct.addr_zip]]),
-  sub:ct=>[ct.title,ct.org].filter(Boolean).join(' \u00b7 ')},
+  sub:ct=>[ct.title,ct.org,dirAddrLine(ct)].filter(Boolean).join(' \u00b7 ')},
  'sig.name':{kind:'signatory',one:'signatory',keys:['sig.name','sig.title'],modeKeys:['sig.name'],
   apply:ct=>dirFill([['sig.name',ct.name],['sig.title',ct.title]]),
   sub:ct=>ct.title||''},
@@ -1721,13 +1725,13 @@ window.addEventListener('DOMContentLoaded',async()=>{
 function openContacts(){renderContacts();show('Contacts');}
 const DIR_SECTIONS=[
  {kind:'appraiser',title:'Appraisers',one:'appraiser',add:'+ Add appraiser',
-  fields:[['name','Name'],['firm','Company'],['addr_street','Street'],['addr_city','City'],['addr_state','State'],['addr_zip','ZIP'],['email','Email'],['phone','Phone']],
-  sub:c=>[c.firm,c.email,c.phone?fmtPhone(c.phone):''].filter(Boolean).join('  \u00b7  ')},
+  rows:[[['name','Name']],[['firm','Company']],[['addr_street','Street']],[['addr_city','City'],['addr_state','State',STATES,'nrw'],['addr_zip','ZIP',null,'nrw']],[['email','Email']],[['phone','Phone']]],
+  sub:c=>[c.firm,dirAddrLine(c),c.email,c.phone?fmtPhone(c.phone):''].filter(Boolean).join('  \u00b7  ')},
  {kind:'ca',title:'Contract administrators',one:'contract administrator',add:'+ Add contract administrator',
-  fields:[['prefix','Prefix (Ms./Mr./Dr./Mx.)'],['name','Name'],['title','Position'],['org','Organization'],['addr_street','Street'],['addr_city','City'],['addr_state','State'],['addr_zip','ZIP']],
-  sub:c=>[c.title,c.org].filter(Boolean).join('  \u00b7  ')},
+  rows:[[['prefix','Prefix',['Ms.','Mr.','Dr.','Mx.'],'nrw'],['name','Name']],[['title','Position']],[['org','Organization']],[['addr_street','Street']],[['addr_city','City'],['addr_state','State',STATES,'nrw'],['addr_zip','ZIP',null,'nrw']]],
+  sub:c=>[c.title,c.org,dirAddrLine(c)].filter(Boolean).join('  \u00b7  ')},
  {kind:'signatory',title:'Signatories',one:'signatory',add:'+ Add signatory',
-  fields:[['name','Name'],['title','Title']],
+  rows:[[['name','Name']],[['title','Title']]],
   sub:c=>c.title||''},
 ];
 function renderContacts(){const list=mpdb.listContacts();
@@ -1743,12 +1747,16 @@ function renderContacts(){const list=mpdb.listContacts();
   document.querySelectorAll('[data-diradd]').forEach(b=>b.onclick=()=>dirDialog(b.getAttribute('data-diradd'),null));
   document.querySelectorAll('[data-dired]').forEach(b=>b.onclick=()=>dirDialog(b.getAttribute('data-dkind'),dirList(b.getAttribute('data-dkind')).find(x=>x.id===b.getAttribute('data-dired'))));
   document.querySelectorAll('[data-dirdel]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-dirdel');const S=DIR_SECTIONS.find(x=>x.kind===b.getAttribute('data-dkind'));const c=dirList(S.kind).find(x=>x.id===id);dialogConfirm('Delete '+S.one,'Remove <b>'+esc(c&&c.name?c.name:'this contact')+'</b> from '+S.title.toLowerCase()+'?','Delete',true,async()=>{await mpdb.deleteDir(id);renderContacts();});});}
-function dirDialog(kind,c){const S=DIR_SECTIONS.find(x=>x.kind===kind);c=c||{};
-  modal('<div class="dlg-t">'+(c.id?'Edit ':'Add ')+esc(S.one)+'</div>'+S.fields.map(f=>'<div class="dlg-field"><label>'+esc(f[1])+'</label><input id="dc_'+f[0]+'" value="'+esc(f[0]==='phone'&&c[f[0]]?fmtPhone(c[f[0]]):(c[f[0]]||''))+'" autocomplete="off"></div>').join('')+'<div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Save</button></div>');
+function dirDialog(kind,c){const S=DIR_SECTIONS.find(x=>x.kind===kind);c=c||{};const FLDS=S.rows.flat();
+  const cell=f=>{const v=f[0]==='phone'&&c[f[0]]?fmtPhone(c[f[0]]):(c[f[0]]||'');
+    const inner=f[2]?('<select id="dc_'+f[0]+'">'+[''].concat(f[2]).map(o=>'<option value="'+esc(o)+'"'+(String(v)===o?' selected':'')+'>'+(o===''?'\u2014':esc(o))+'</option>').join('')+'</select>')
+      :('<input id="dc_'+f[0]+'" value="'+esc(v)+'" autocomplete="off">');
+    return '<div class="dlg-field'+(f[3]?' '+f[3]:'')+'"><label>'+esc(f[1])+'</label>'+inner+'</div>';};
+  modal('<div class="dlg-t">'+(c.id?'Edit ':'Add ')+esc(S.one)+'</div>'+S.rows.map(row=>row.length>1?('<div class="dlg-2">'+row.map(cell).join('')+'</div>'):cell(row[0])).join('')+'<div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Save</button></div>');
   const pp=el('dc_phone');if(pp&&pp.addEventListener)pp.addEventListener('input',()=>{pp.value=fmtPhone(pp.value);});
-  S.fields.forEach(f=>{const ff=el('dc_'+f[0]);if(ff&&ff.addEventListener)ff.addEventListener('keydown',ev=>{if(ev.key!=='Enter')return;ev.preventDefault();const d=pp?(pp.value||'').replace(/\D/g,''):'';if(!pp||d.length===0||d.length===10)el('dlgOk').click();});});
+  FLDS.forEach(f=>{const ff=el('dc_'+f[0]);if(ff&&ff.addEventListener)ff.addEventListener('keydown',ev=>{if(ev.key!=='Enter')return;ev.preventDefault();const d=pp?(pp.value||'').replace(/\D/g,''):'';if(!pp||d.length===0||d.length===10)el('dlgOk').click();});});
   el('dlgCancel').onclick=closeModal;
-  el('dlgOk').onclick=async()=>{const patch={};S.fields.forEach(f=>{patch[f[0]]=(el('dc_'+f[0]).value||'').trim();});closeModal();if(c.id)await mpdb.updateDir(c.id,patch);else await mpdb.addDir(kind,patch);renderContacts();};}
+  el('dlgOk').onclick=async()=>{const patch={};FLDS.forEach(f=>{patch[f[0]]=(el('dc_'+f[0]).value||'').trim();});closeModal();if(c.id)await mpdb.updateDir(c.id,patch);else await mpdb.addDir(kind,patch);renderContacts();};}
 function contactDialog(c){c=c||{};
   modal('<div class="dlg-t">'+(c.id?'Edit contact':'Add contact')+'</div><div class="dlg-field"><label>Name</label><input id="ccN" value="'+esc(c.name||'')+'" autocomplete="off"></div><div class="dlg-field"><label>Email</label><input id="ccE" value="'+esc(c.email||'')+'" autocomplete="off"></div><div class="dlg-field"><label>Phone</label><input id="ccP" value="'+esc(c.phone?fmtPhone(c.phone):'')+'" autocomplete="off"></div><div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Save</button></div>');
   { const pp=el('ccP'); if(pp){ pp.value=fmtPhone(pp.value||''); if(pp.addEventListener) pp.addEventListener('input',()=>{ pp.value=fmtPhone(pp.value); }); } }
