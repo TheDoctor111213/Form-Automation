@@ -96,12 +96,19 @@ counterpart's proposed rent, once RCS parsing exists).
   (crosswalk enabled later the same day) — ZIP→county now uses HUD's own crosswalk
   (type 2, highest res_ratio wins); the Census geocoder is only the no-ZIP fallback,
   so ZIP alone is enough to pull.
-- **Section 6 "⤓ Pull HUD SAFMR" button** (`app.js` `pullHudSafmr()`, wired next to
-  addUnit/addNonrev; CSS `.hudpull` in `shell.head.html`): fills `units.{i}.safmr_hud`
-  with **round(1.5 × base SAFMR)** per unit type (db.js:109 — the field holds the 150%
-  ceiling). Bedroom map Studio→Efficiency … 4BR; >4BR = 4BR +15%/extra bedroom (HUD rule).
-  Prefers the property-ZIP row; falls back to the metro-wide row (labeled in the status
-  line). Values flow through `store.editForm` — normal provenance/save/override behavior.
+- **Client: automatic + manual** (`app.js`: `ensureHudSafmr`/`applyHudSafmr`/
+  `scheduleHudRefresh`, in-session cache `_hud` keyed ZIP|year). Auto-pull fires on
+  form open, when the ZIP is typed (900ms debounce), when the effective-date year
+  changes, and when a unit's BR type is set (fills instantly from cache). A stale-fetch
+  guard skips applying if the form's ZIP/year changed mid-flight. The small **"⤓ HUD"**
+  re-pull button lives in the 150% SAFMR column header (`.safmrhead`/`.hudbtn` CSS);
+  a manual click forces a fresh fetch. Fills `units.{i}.safmr_hud` with
+  **round(1.5 × base SAFMR)** per unit type (db.js:109 — the field holds the 150%
+  ceiling). Bedroom map Studio→Efficiency … 4BR; >4BR = 4BR +15%/extra bedroom (HUD
+  rule). Prefers the property-ZIP row; falls back to the metro-wide row (labeled in
+  the status line). Values flow through `store.editForm` — normal provenance/save/
+  override behavior. First call after an edge-function deploy is slow (cold start,
+  imports supabase-js) — auto-pull just lands a few seconds later; not a bug.
 - **Verified end-to-end** (real authenticated session, localhost against live backend):
   curl → 401 without session; invoke → FY2026 Dallas zip 75201 SAFMRs; UI fill 1BR $3,705 /
   2BR $4,350 / 5BR $8,004; saveField → persisted → test property deleted (cascade clean).
