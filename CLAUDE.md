@@ -5,8 +5,9 @@ Section 8 (Related Affordable). A form-driven tool that pre-fills from stored +
 uploaded data, clears an internal 150%-SAFMR check, and generates the six-document
 renewal package as review-ready drafts. See `RCS Renewal Automation - Project Plan.md`.
 
-> **Latest handoff:** `SESSION-HANDOFF-2026-07-13.md` — what changed on 2026-07-13,
-> the current folder structure, verification evidence, and a resume-here block.
+> **Latest handoff:** `SESSION-HANDOFF-2026-07-14.md` — the Supabase backend migration
+> (data layer moved off localStorage), what's live, and a resume-here block. NOTE: the
+> storage/offline/deliver sections below predate that migration and need refreshing.
 
 ## The product is the single-file app — built from source
 
