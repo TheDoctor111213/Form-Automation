@@ -57,7 +57,7 @@ body.scrolled #ccbar{transform:translateY(0);opacity:1}
 .uamenu{display:none;position:absolute;left:0;top:100%;margin-top:3px;z-index:30;background:#fff;border:1px solid #d3dae6;border-radius:8px;box-shadow:0 8px 22px rgba(20,40,80,.14);min-width:150px;max-height:240px;overflow:auto} .uadrop.open .uamenu{display:block} .uaopt{padding:9px 12px;font-size:13px;cursor:pointer;color:#33405c} .uaopt:hover{background:#eef0fc}
 .uacustom{border:none;border-bottom:1px dashed #d8b483;background:transparent;padding:6px 2px;font:inherit;outline:none} .urev{border:1px solid #d8b483;background:#fbf1e6;color:#b45309;border-radius:5px;cursor:pointer;font-size:11px;padding:3px 6px;flex:0 0 auto}
 .uanote{font-size:11.5px;align-self:center;line-height:1.5} .uanote.warn{color:#b45309} .uanote.ok{color:#166534}
-.lastcell{display:flex;align-items:center;gap:8px;justify-content:space-between} .trash{border:none;background:transparent;cursor:pointer;font-size:14px;opacity:.55;flex:0 0 auto} .trash:hover{opacity:1}
+.lastcell{display:flex;align-items:center;gap:8px;justify-content:space-between} .trash{border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:800;color:#b91c1c;opacity:.6;flex:0 0 auto;line-height:1;padding:2px 4px} .trash:hover{opacity:1}
 .addrow{color:#4c51bf;font-weight:600;font-size:12.5px;margin-top:12px;cursor:pointer;display:inline-block} .ghostlink{color:#8a93a5} .grossnote{color:#8a93a5;font-size:11.5px;margin-top:6px;text-align:right}
 .partd{margin-top:16px;border-top:1px dashed #dfe4ee;padding-top:12px} .pdhead{font-size:12px;font-weight:700;color:#33405c} .pdhead .sub{font-weight:400;color:#8a93a5;font-size:11px} .pdgrid{display:grid;grid-template-columns:180px 180px 130px 40px;gap:9px 12px;align-items:center;margin-top:9px;justify-content:start}.pdrow{display:grid;grid-template-columns:1.5fr .7fr 1fr 1fr 1.25fr 1.25fr 30px;gap:8px 14px;align-items:center;padding:7px 2px;border-bottom:1px solid #f0f2f7}.pdrow:last-of-type{border-bottom:none} .pdtrash{display:flex;justify-content:center}
 .pbnote{color:#8a93a5;font-size:11.5px;font-style:italic;margin-bottom:8px} .pbgrp{font-size:12px;font-weight:700;color:#33405c;margin:12px 0 6px} .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 18px} .cols2{display:grid;grid-template-columns:1fr 1fr;gap:6px 26px}
@@ -273,7 +273,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
  </div>
  <!-- ===================== PROPERTY MENU ===================== -->
  <div id="viewMenu" style="display:none">
-   <div class="mtop"><div class="brand"><span class="mark"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><div class="bname">Section 8 Rent Adjustments</div><div class="btag">Related Affordable</div></div></div><div class="mtoprightwrap"><button class="backlink mtopright" id="bContacts">PM Contacts</button><button class="backlink mtopright" id="bSignOut">Sign out</button></div></div>
+   <div class="mtop"><div class="brand"><span class="mark"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><div class="bname">Section 8 Rent Adjustments</div><div class="btag">Related Affordable</div></div></div><div class="mtoprightwrap"><button class="backlink mtopright" id="bContacts">Contacts</button><button class="backlink mtopright" id="bSignOut">Sign out</button></div></div>
    <div class="mwrap">
      <div class="mhead">
        <div><h2 class="mtitle">Properties</h2><div class="msub" id="menuCount"></div></div>
@@ -303,7 +303,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
          <div class="kick" style="margin-top:12px">SOURCE KEY</div>
          <div class="key"><span><i class="sw" style="background:#e8f0fe;border-left-color:#2563eb"></i>On file (database)</span><span><i class="sw" style="background:#e9f5f2;border-left-color:#0f766e"></i>Parsed / API</span><span><i class="sw" style="background:#fbf1e6;border-left-color:#b45309"></i>Overridden</span><span><i class="sw" style="background:#f6f7f9;border-left-color:#64748b"></i>New &mdash; not yet saved</span></div>
        </div>
-       <div class="main"><div id="sections"></div><div class="footer"><button class="btn p" id="bSave">&#128190; Update database</button><button class="btn p" id="bGenerate">Generate package</button></div></div>
+       <div class="main"><div id="sections"></div><div class="footer"><button class="btn p" id="bSave">Update database</button><button class="btn p" id="bGenerate">Generate package</button></div></div>
      </div>
    </div>
  </div>

@@ -54,6 +54,8 @@ function makeSupabaseDb(client) {
   const UINT = new Set(['num_units', 'current', 'proposed', 'ua_exec', 'ua_rcs', 'ua_custom', 'num_rcs', 'safmr_rcs', 'safmr_hud', 'safmr_custom']);
 
   const NRCOL = { use: 'use', br: 'bedrooms', ba: 'bathrooms', num_units: 'num_units', rent: 'monthly_rent' };
+  // app_contact directory (appraiser / ca / signatory) column set
+  const DIRF = ['name', 'email', 'phone', 'prefix', 'org', 'firm', 'title', 'addr_street', 'addr_city', 'addr_state', 'addr_zip'];
   const NRCOL_REV = {}; for (const k in NRCOL) NRCOL_REV[NRCOL[k]] = k;
   const NRINT = new Set(['num_units', 'rent']);
 
@@ -64,7 +66,7 @@ function makeSupabaseDb(client) {
   const toInt = v => { if (v == null || String(v).trim() === '') return null; const n = Math.round(num(v)); return isNaN(n) ? null : n; };
 
   /* ---- in-memory mirror -------------------------------------------------- */
-  let D = { props: {}, contacts: [], activePid: null };
+  let D = { props: {}, contacts: [], dir: [], activePid: null };
 
   const place = (p, key, raw, sa) => {
     const cell = { value: (raw == null ? '' : String(raw)), source: 'database', saved_at: sa };
@@ -72,15 +74,16 @@ function makeSupabaseDb(client) {
   };
 
   async function load() {
-    const [pr, ur, nr, li, ct] = await Promise.all([
+    const [pr, ur, nr, li, ct, dr] = await Promise.all([
       client.from('property').select('*'),
       client.from('unit_type').select('*'),
       client.from('nonrev_unit').select('*'),
       client.from('lihtc_unit').select('*'),
       client.from('pm_contact').select('*'),
+      client.from('app_contact').select('*'),
     ]);
     if (pr.error) throw pr.error;
-    D = { props: {}, contacts: [], activePid: null };
+    D = { props: {}, contacts: [], dir: [], activePid: null };
     (pr.data || []).forEach(r => {
       const sa = String(r.updated_at || '').slice(0, 10);
       const p = { id: r.id, created_at: String(r.created_at || '').slice(0, 10), updated_at: r.updated_at || r.created_at, durable: {}, percycle: {} };
@@ -105,6 +108,7 @@ function makeSupabaseDb(client) {
       for (const col in LICOL_REV) if (n[col] != null) place(p, 'lihtc.' + n.flat_index + '.' + LICOL_REV[col], n[col], sa);
     });
     D.contacts = (ct.data || []).map(c => ({ id: c.id, name: c.name || '', email: c.email || '', phone: c.phone || '' }));
+    D.dir = ((dr && dr.data) || []).map(c => { const r = { id: c.id, kind: c.kind || '' }; DIRF.forEach(f => r[f] = c[f] || ''); return r; });
   }
 
   /* ---- build Supabase payloads from the mirror --------------------------- */
@@ -277,10 +281,26 @@ function makeSupabaseDb(client) {
         D.contacts = (D.contacts || []).filter(x => x.id !== id);
         const r = await client.from('pm_contact').delete().eq('id', id); if (r.error) throw r.error;
       },
+      listDir(kind) { return (D.dir || []).filter(c => c.kind === kind).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))); },
+      async addDir(kind, c) {
+        const id = uuid(); const rec = { id, kind }; DIRF.forEach(f => rec[f] = (c && c[f]) || '');
+        D.dir.push(rec);
+        const r = await client.from('app_contact').insert(rec); if (r.error) throw r.error;
+        return id;
+      },
+      async updateDir(id, patch) {
+        const c = (D.dir || []).find(x => x.id === id); if (c) Object.assign(c, patch || {});
+        const r = await client.from('app_contact').update(patch || {}).eq('id', id); if (r.error) throw r.error;
+      },
+      async deleteDir(id) {
+        D.dir = (D.dir || []).filter(x => x.id !== id);
+        const r = await client.from('app_contact').delete().eq('id', id); if (r.error) throw r.error;
+      },
       async clearAll() {
         await client.from('property').delete().not('id', 'is', null);
         await client.from('pm_contact').delete().not('id', 'is', null);
-        D = { props: {}, contacts: [], activePid: null };
+        await client.from('app_contact').delete().not('id', 'is', null);
+        D = { props: {}, contacts: [], dir: [], activePid: null };
       },
       computeAnalysis, computeSalutation,
     };
