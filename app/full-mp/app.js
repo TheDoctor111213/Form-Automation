@@ -210,13 +210,13 @@ function renderRents(){
   if(NONREV.length){pd+=`<div class="rgh"><span style="grid-column:1">Unit type</span><span style="grid-column:2/4">Use</span><span style="grid-column:4">Contract rent</span></div>`+NONREV.map(i=>`<div class="pdrow"><div style="grid-column:1">${brbaBox('nonrev.'+i+'.br','nonrev.'+i+'.ba')}</div><div style="grid-column:2/4">${numBox('nonrev.'+i+'.use',"e.g. Manager’s unit")}</div><div style="grid-column:4">${moneyBox('nonrev.'+i+'.rent')}</div><div class="urx" style="grid-column:7"><button class="trash" data-delnonrev="${i}" title="Delete">🗑</button></div></div>`).join('');}
   pd+=`<div class="addrow" id="addNonrev">+ Add non-revenue unit</div>`;
   const rgHead='<div class="rgh"><span>Type</span><span>Units</span><span>Current rent</span><span>Proposed rent</span><span>Utility allowance</span><span>150% SAFMR</span><span></span></div>';
-  return card(6,sectionPill(6),`<div class="reseff">${dateEffCell()}</div><div class="hudpull"><button class="urev" id="pullSafmr">⤓ Pull HUD SAFMR</button><span class="hudsub">fills the 150% ceiling from HUD’s SAFMR dataset for this property’s address</span></div><div class="ucards">${UNITS.length?rgHead:''}${cards}</div><div class="addrow" id="addUnit">+ Add unit type</div>${_undoStack.length?(' <span class="addrow ghostlink" id="undoUnit">↩ Undo delete'+(_undoStack.length>1?(' ('+_undoStack.length+')'):'')+'</span><button class="undocommit" id="undoCommit" title="Keep deletions — dismiss undo">✓</button>'):''}<div class="partd">${pd}</div>`);}
+  return card(6,sectionPill(6),`<div class="reseff">${dateEffCell()}</div><div class="hudpull"><button class="urev" id="pullSafmr">⤓ Pull HUD SAFMR</button><span class="hudsub">fills the 150% ceiling from HUD’s SAFMR dataset for this property’s ZIP</span></div><div class="ucards">${UNITS.length?rgHead:''}${cards}</div><div class="addrow" id="addUnit">+ Add unit type</div>${_undoStack.length?(' <span class="addrow ghostlink" id="undoUnit">↩ Undo delete'+(_undoStack.length>1?(' ('+_undoStack.length+')'):'')+'</span><button class="undocommit" id="undoCommit" title="Keep deletions — dismiss undo">✓</button>'):''}<div class="partd">${pd}</div>`);}
 
 const SAFMR_BR_KEY={'Studio':'efficiency','1BR':'br1','2BR':'br2','3BR':'br3','4BR':'br4'};
 async function pullHudSafmr(){
   if(!supaClient){setStatus('HUD SAFMR pull needs the hosted backend \u2014 sign in first.');return;}
   const street=get('property.addr_street'),city=get('property.addr_city'),state=get('property.addr_state'),zip=get('property.addr_zip');
-  if(!street||!city||!state){setStatus('Enter the property address in Section 2 first \u2014 HUD SAFMRs are looked up by address.');return;}
+  if(!(zip&&String(zip).replace(/\D/g,'').length>=5)&&!(street&&city&&state)){setStatus('Enter the property ZIP (or full address) in Section 2 first \u2014 HUD SAFMRs are looked up by ZIP.');return;}
   const de=dateEffResolved();const year=de?parseInt(String(de).slice(0,4),10):(new Date()).getFullYear();
   const b0=el('pullSafmr');if(b0){b0.disabled=true;b0.textContent='Pulling from HUD\u2026';}
   try{
