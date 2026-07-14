@@ -146,22 +146,27 @@
   }
   async function tenantNotice(rec, letterhead){
     const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const nm=t.tenant_alias||t.property_name;
-    // The notice must stay on ONE page. Font and table sizes never change:
-    // if the normal layout overflows, spacing alone is compacted in steps
-    // (top drop below the letterhead, paragraph gaps, then leading).
-    const LEVELS=[{drop:150,ga:1,lead:1,sig:34},{drop:132,ga:0.65,lead:1,sig:22},{drop:120,ga:0.45,lead:0.95,sig:14}];
+    // The notice must stay on ONE page. Font and table sizes never change,
+    // and the text never climbs into the letterhead header: lh.drop (the
+    // measured bottom of the header art, when available) fixes the start
+    // line, and overflow is absorbed by trimming paragraph gaps, the
+    // signature gap, and finally a hair of leading. The top drop shrinks
+    // only for unmeasured (PDF) letterheads, and only as a last resort.
+    const baseDrop=(letterhead&&letterhead.drop)?letterhead.drop:150;
+    const measured=!!(letterhead&&letterhead.drop);
+    const LEVELS=[{ga:1,lead:1,sig:34,dd:0},{ga:0.8,lead:1,sig:24,dd:0},{ga:0.6,lead:1,sig:18,dd:0},{ga:0.45,lead:0.97,sig:14,dd:0},{ga:0.45,lead:0.95,sig:12,dd:10},{ga:0.4,lead:0.93,sig:10,dd:20}];
     let out=null;
     for(const L of LEVELS){
       const doc=await PDFDocument.create();
       const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
-      const st=makeLetter(doc,R,B,I); st.gaScale=L.ga; st.leadScale=L.lead; st.y=792-58;
+      const st=makeLetter(doc,R,B,I); st.gaScale=L.ga; st.leadScale=L.lead; st.y=792-58; const drop=Math.max(96,baseDrop-(measured?0:L.dd));
       let placed=false;
       // Letterhead is an underlay: the first page prints ON it (continuation
       // pages stay plain, like feeding letterhead paper for page 1 only).
       const lh=letterhead&&(letterhead.pdf||letterhead.png)?letterhead:(letterhead?{png:letterhead}:null);
-      if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-L.drop; placed=true; }catch(e){} }
+      if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-drop; placed=true; }catch(e){} }
       else if(lh&&lh.png){ try{ const img=await doc.embedPng(lh.png);
-        if(img.height>=img.width){ st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-L.drop; placed=true; }
+        if(img.height>=img.width){ st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-drop; placed=true; }
         else { const ar=img.width/img.height; let h=110,w=h*ar; const maxW=612-2*72; if(w>maxW){w=maxW;h=w/ar;}
           st.page.drawImage(img,{x:(612-w)/2,y:792-42-h,width:w,height:h}); st.y=792-42-h-24; placed=true; } }catch(e){} }
       if(!placed){ st.center(nm,{font:B,size:14}); const a=[t.mgmt_addr,[t.mgmt_city,t.mgmt_state].filter(Boolean).join(', ')+' '+t.mgmt_zip].filter(x=>x&&x.trim()).join(' · '); if(a.trim())st.center(a,{size:9.5,color:st.grey}); st.gap(16); }

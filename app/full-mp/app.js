@@ -561,7 +561,7 @@ function renderLauncher(){
 function wireLetterhead(){
   const file=el('lhFile');const pick=()=>file&&file.click&&file.click();
   ['lhAdd','lhReplace'].forEach(id=>{const b=el(id);if(b)b.onclick=pick;});
-  const rm=el('lhRemove');if(rm)rm.onclick=async()=>{await mpdb.setLetterhead(activePid,'','','');renderLauncher();};
+  const rm=el('lhRemove');if(rm)rm.onclick=()=>dialogConfirm('Remove the letterhead?','The stored letterhead is deleted \u2014 the tenant notice will fall back to a generated header (property name + management address) until a new one is uploaded.','Remove',true,async()=>{await mpdb.setLetterhead(activePid,'','','');renderLauncher();});
   if(file)file.onchange=()=>{const f=file.files&&file.files[0];if(!f)return;file.value='';
     if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
       if(f.size>4*1024*1024){dialogConfirm('Letterhead','This PDF is over 4 MB. Export a lighter letterhead PDF (or a PNG/JPG) and upload that.','OK',false,()=>{});return;}
@@ -688,11 +688,29 @@ async function genPackage(){
     dialogConfirm('No letterhead uploaded','The tenant notice will print with a generated header instead \u2014 \u201c'+esc(alias)+'\u201d (the property name as tenants know it) plus the management address. To print on the real letterhead, upload it on the property page first.','Generate anyway',false,()=>{__genPackageRun();});return;}
   await __genPackageRun();
 }
+/* Find where the letterhead's header art ends: scan the top half of the
+   page image for the lowest row with ink; the notice starts just below it. */
+function measureLetterheadDrop(dataUrl){return new Promise(res=>{try{
+  const img=new Image();
+  img.onload=()=>{try{
+    if(img.height<img.width){res(null);return;} // banners are placed, not underlaid
+    const W=306,H=396,c=document.createElement('canvas');c.width=W;c.height=H;
+    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.drawImage(img,0,0,W,H);
+    const half=Math.floor(H*0.5);const d=g.getImageData(0,0,W,half).data;let low=-1;
+    for(let y=0;y<half;y++){let cnt=0;for(let x=0;x<W;x++){const i=(y*W+x)*4;
+      if(d[i+3]>40&&(d[i]<235||d[i+1]<235||d[i+2]<235)){if(++cnt>=3)break;}}
+      if(cnt>=3)low=y;}
+    if(low<0){res(null);return;}
+    res(Math.min(320,Math.max(110,Math.round((low/H)*792)+16)));
+  }catch(e){res(null);}};
+  img.onerror=()=>res(null);img.src=dataUrl;
+}catch(e){res(null);}});}
 async function __genPackageRun(){
   const T=window.RCSTemplates||{};
   try{ setStatus('Generating package...'); const rec=formRec(); const logo=b64ToBytes(LOGO_B64);
     let lh=null; try{ const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;
-      if(L&&L.data){const by=dataUrlToBytes(L.data);if(by)lh=(String(L.data).indexOf('data:application/pdf')===0)?{pdf:by}:{png:by};} }catch(e){}
+      if(L&&L.data){const by=dataUrlToBytes(L.data);if(by)lh=(String(L.data).indexOf('data:application/pdf')===0)?{pdf:by}:{png:by};}
+      if(lh&&lh.png){const dr=await measureLetterheadDrop(L.data);if(dr)lh.drop=dr;} }catch(e){}
     const N=get('property.name')||'Property'; const docs=[];
     docs.push({label:'Cover letter (CA)',file:'01. '+N+' - Cover Letter',bytes:await window.RCSGen.coverLetter(rec,logo)});
     docs.push({label:'Owner cover letter',file:'02. '+N+' - RCS Owner Cover Letter',bytes:await window.RCSGen.ownerLetter(rec)});

@@ -1600,7 +1600,7 @@ function renderLauncher(){
 function wireLetterhead(){
   const file=el('lhFile');const pick=()=>file&&file.click&&file.click();
   ['lhAdd','lhReplace'].forEach(id=>{const b=el(id);if(b)b.onclick=pick;});
-  const rm=el('lhRemove');if(rm)rm.onclick=async()=>{await mpdb.setLetterhead(activePid,'','','');renderLauncher();};
+  const rm=el('lhRemove');if(rm)rm.onclick=()=>dialogConfirm('Remove the letterhead?','The stored letterhead is deleted \u2014 the tenant notice will fall back to a generated header (property name + management address) until a new one is uploaded.','Remove',true,async()=>{await mpdb.setLetterhead(activePid,'','','');renderLauncher();});
   if(file)file.onchange=()=>{const f=file.files&&file.files[0];if(!f)return;file.value='';
     if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
       if(f.size>4*1024*1024){dialogConfirm('Letterhead','This PDF is over 4 MB. Export a lighter letterhead PDF (or a PNG/JPG) and upload that.','OK',false,()=>{});return;}
@@ -1727,11 +1727,29 @@ async function genPackage(){
     dialogConfirm('No letterhead uploaded','The tenant notice will print with a generated header instead \u2014 \u201c'+esc(alias)+'\u201d (the property name as tenants know it) plus the management address. To print on the real letterhead, upload it on the property page first.','Generate anyway',false,()=>{__genPackageRun();});return;}
   await __genPackageRun();
 }
+/* Find where the letterhead's header art ends: scan the top half of the
+   page image for the lowest row with ink; the notice starts just below it. */
+function measureLetterheadDrop(dataUrl){return new Promise(res=>{try{
+  const img=new Image();
+  img.onload=()=>{try{
+    if(img.height<img.width){res(null);return;} // banners are placed, not underlaid
+    const W=306,H=396,c=document.createElement('canvas');c.width=W;c.height=H;
+    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.drawImage(img,0,0,W,H);
+    const half=Math.floor(H*0.5);const d=g.getImageData(0,0,W,half).data;let low=-1;
+    for(let y=0;y<half;y++){let cnt=0;for(let x=0;x<W;x++){const i=(y*W+x)*4;
+      if(d[i+3]>40&&(d[i]<235||d[i+1]<235||d[i+2]<235)){if(++cnt>=3)break;}}
+      if(cnt>=3)low=y;}
+    if(low<0){res(null);return;}
+    res(Math.min(320,Math.max(110,Math.round((low/H)*792)+16)));
+  }catch(e){res(null);}};
+  img.onerror=()=>res(null);img.src=dataUrl;
+}catch(e){res(null);}});}
 async function __genPackageRun(){
   const T=window.RCSTemplates||{};
   try{ setStatus('Generating package...'); const rec=formRec(); const logo=b64ToBytes(LOGO_B64);
     let lh=null; try{ const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;
-      if(L&&L.data){const by=dataUrlToBytes(L.data);if(by)lh=(String(L.data).indexOf('data:application/pdf')===0)?{pdf:by}:{png:by};} }catch(e){}
+      if(L&&L.data){const by=dataUrlToBytes(L.data);if(by)lh=(String(L.data).indexOf('data:application/pdf')===0)?{pdf:by}:{png:by};}
+      if(lh&&lh.png){const dr=await measureLetterheadDrop(L.data);if(dr)lh.drop=dr;} }catch(e){}
     const N=get('property.name')||'Property'; const docs=[];
     docs.push({label:'Cover letter (CA)',file:'01. '+N+' - Cover Letter',bytes:await window.RCSGen.coverLetter(rec,logo)});
     docs.push({label:'Owner cover letter',file:'02. '+N+' - RCS Owner Cover Letter',bytes:await window.RCSGen.ownerLetter(rec)});
@@ -1963,22 +1981,27 @@ if(typeof module!=='undefined')module.exports={fmtPhone,fmtDate,sMoney,sPct,sK,a
   }
   async function tenantNotice(rec, letterhead){
     const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const nm=t.tenant_alias||t.property_name;
-    // The notice must stay on ONE page. Font and table sizes never change:
-    // if the normal layout overflows, spacing alone is compacted in steps
-    // (top drop below the letterhead, paragraph gaps, then leading).
-    const LEVELS=[{drop:150,ga:1,lead:1,sig:34},{drop:132,ga:0.65,lead:1,sig:22},{drop:120,ga:0.45,lead:0.95,sig:14}];
+    // The notice must stay on ONE page. Font and table sizes never change,
+    // and the text never climbs into the letterhead header: lh.drop (the
+    // measured bottom of the header art, when available) fixes the start
+    // line, and overflow is absorbed by trimming paragraph gaps, the
+    // signature gap, and finally a hair of leading. The top drop shrinks
+    // only for unmeasured (PDF) letterheads, and only as a last resort.
+    const baseDrop=(letterhead&&letterhead.drop)?letterhead.drop:150;
+    const measured=!!(letterhead&&letterhead.drop);
+    const LEVELS=[{ga:1,lead:1,sig:34,dd:0},{ga:0.8,lead:1,sig:24,dd:0},{ga:0.6,lead:1,sig:18,dd:0},{ga:0.45,lead:0.97,sig:14,dd:0},{ga:0.45,lead:0.95,sig:12,dd:10},{ga:0.4,lead:0.93,sig:10,dd:20}];
     let out=null;
     for(const L of LEVELS){
       const doc=await PDFDocument.create();
       const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
-      const st=makeLetter(doc,R,B,I); st.gaScale=L.ga; st.leadScale=L.lead; st.y=792-58;
+      const st=makeLetter(doc,R,B,I); st.gaScale=L.ga; st.leadScale=L.lead; st.y=792-58; const drop=Math.max(96,baseDrop-(measured?0:L.dd));
       let placed=false;
       // Letterhead is an underlay: the first page prints ON it (continuation
       // pages stay plain, like feeding letterhead paper for page 1 only).
       const lh=letterhead&&(letterhead.pdf||letterhead.png)?letterhead:(letterhead?{png:letterhead}:null);
-      if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-L.drop; placed=true; }catch(e){} }
+      if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-drop; placed=true; }catch(e){} }
       else if(lh&&lh.png){ try{ const img=await doc.embedPng(lh.png);
-        if(img.height>=img.width){ st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-L.drop; placed=true; }
+        if(img.height>=img.width){ st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-drop; placed=true; }
         else { const ar=img.width/img.height; let h=110,w=h*ar; const maxW=612-2*72; if(w>maxW){w=maxW;h=w/ar;}
           st.page.drawImage(img,{x:(612-w)/2,y:792-42-h,width:w,height:h}); st.y=792-42-h-24; placed=true; } }catch(e){} }
       if(!placed){ st.center(nm,{font:B,size:14}); const a=[t.mgmt_addr,[t.mgmt_city,t.mgmt_state].filter(Boolean).join(', ')+' '+t.mgmt_zip].filter(x=>x&&x.trim()).join(' · '); if(a.trim())st.center(a,{size:9.5,color:st.grey}); st.gap(16); }
