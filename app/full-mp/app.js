@@ -366,7 +366,7 @@ let _mouseFocus=false;document.addEventListener('mousedown',()=>{_mouseFocus=tru
 window.addEventListener('scroll',()=>{const s=window.scrollY>150;if(s!==document.body.classList.contains('scrolled'))document.body.classList.toggle('scrolled',s);});
 
 let activeProgram='RCS';let sortMode='name';
-function show(v){['Menu','Launcher','Form','Contacts'].forEach(V=>{const e=el('view'+V);if(e)e.style.display=(v===V)?'':'none';});window.scrollTo(0,0);}
+function show(v){['Auth','Menu','Launcher','Form','Contacts'].forEach(V=>{const e=el('view'+V);if(e)e.style.display=(v===V)?'':'none';});window.scrollTo(0,0);}
 
 /* ---- small helpers for the menu -------------------------------------- */
 function ringSvg(pct,size){size=size||36;const r=size/2-3;const c=2*Math.PI*r;const off=c*(1-Math.max(0,Math.min(100,pct))/100);const col=pct>=100?'#1e3a5f':'#b45309';
@@ -513,8 +513,14 @@ async function genPackage(){
   }catch(e){ setStatus('Generation failed: '+((e&&e.message)||e)); }
 }
 /* ---- boot ------------------------------------------------------------- */
-window.addEventListener('DOMContentLoaded',async()=>{
-  mpdb=await makeDb(localAdapter('rcs_mp_db1'));
+let supaClient=null;
+function showAuthScreen(){show('Auth');const btn=el('authSignIn'),em=el('authEmail'),pw=el('authPassword'),err=el('authErr');if(err)err.textContent='';
+  const go=async()=>{if(err)err.textContent='';const email=((em&&em.value)||'').trim(),password=(pw&&pw.value)||'';if(!email||!password){if(err)err.textContent='Enter your email and password.';return;}
+    btn.disabled=true;btn.textContent='Signing in\u2026';const{error}=await supaClient.auth.signInWithPassword({email,password});btn.disabled=false;btn.textContent='Sign in';
+    if(error){if(err)err.textContent=error.message||'Sign-in failed.';return;}if(pw)pw.value='';await boot();};
+  if(btn)btn.onclick=go;[em,pw].forEach(f=>{if(f)f.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};});if(em)em.focus();}
+async function boot(){
+  mpdb=await makeSupabaseDb(supaClient);
   const ms=el('menuSearch');if(ms)ms.addEventListener('input',renderMenu);
   const bn=el('bNewProperty');if(bn)bn.onclick=createProperty;
   document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sortMode=b.getAttribute('data-sort');document.querySelectorAll('[data-sort]').forEach(x=>x.classList.toggle('on',x===b));renderMenu();});
@@ -523,8 +529,17 @@ window.addEventListener('DOMContentLoaded',async()=>{
   const bs=el('bSave');if(bs)bs.onclick=()=>requestSave(()=>{renderBody();setStatus('Saved '+relTime(new Date().toISOString())+'.');});
   const bg=el('bGenerate');if(bg)bg.onclick=genPackage;const lb=el('bLauncherBack');if(lb)lb.onclick=openMenu;
   const bc=el('bContacts');if(bc)bc.onclick=openContacts; const cb2=el('bContactsBack');if(cb2)cb2.onclick=openMenu;
+  const so=el('bSignOut');if(so)so.onclick=async()=>{await supaClient.auth.signOut();};
   const sc=el('scrim');if(sc&&sc.addEventListener)sc.addEventListener('click',e=>{if(e.target===sc)closeModal();});
   openMenu();
+}
+window.addEventListener('DOMContentLoaded',async()=>{
+  if(!(window.supabase&&window.SUPABASE_URL&&window.SUPABASE_ANON_KEY)){const e=el('authErr');if(e)e.textContent='Supabase is not configured.';show('Auth');return;}
+  supaClient=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY);
+  supaClient.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT')showAuthScreen();});
+  const{data:{session}}=await supaClient.auth.getSession();
+  if(!session){showAuthScreen();return;}
+  await boot();
 });
 function openContacts(){renderContacts();show('Contacts');}
 function renderContacts(){const list=mpdb.listContacts();
