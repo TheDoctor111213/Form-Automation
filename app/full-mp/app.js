@@ -49,7 +49,7 @@ const ALL_KEYS=Object.keys(SEED).map(k=>({key:k}));
 let mpdb=null, activePid=null;
 const bridge={getDb:async()=>mpdb?mpdb.getFlat(activePid):{},saveDb:async(m)=>mpdb.saveFlat(activePid,m),clearDb:async()=>{}};
 const store=makeStore(bridge,ALL_KEYS);
-let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let _undoStack=[]; let _pending=null,_refocusSel=null,_pendingSnap=null;
+let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let LIHTC=[]; let _undoStack=[]; let _pending=null,_refocusSel=null,_pendingSnap=null;
 
 const CLR={database:['#2563eb','#e8f0fe','On file'],'this-cycle':['#0f766e','#e9f5f2','Parsed/API'],overridden:['#b45309','#fbf1e6','Overridden'],'auto-calculated':['#2563eb','#e8f0fe','Auto-calc'],'new':['#64748b','#f6f7f9','New']};
 const TODAY=new Date().toISOString().slice(0,10);
@@ -77,7 +77,7 @@ function nonrevChanged(){return NONREV.length!==dbIdxSize('nonrev.')||keysChange
 function modeOf(kk){const keys=Array.isArray(kk)?kk:[kk];if(keys.some(k=>srcOf(k)==='overridden'))return 'over';if(keys.some(k=>srcOf(k)==='new'&&get(k)!==''&&get(k)!=null))return 'new';return '';}
 function ovIcons(kk){const keys=Array.isArray(kk)?kk:[kk];const j=keys.join(',');const m=modeOf(keys);return `<span class="ovic" data-ovic="${j}" data-mode="${m}" style="display:${m?'inline-flex':'none'}"><button class="miniic rv" data-rev="${j}" title="Revert to on-file">↺</button><button class="miniic sv" data-save1="${j}" title="Save this field to the database">✓</button></span>`;}
 
-function deriveUnits(){const u=new Set([0]),nr=new Set();Object.keys(form).forEach(k=>{let m=k.match(/^units\.(\d+)\./);if(m)u.add(+m[1]);m=k.match(/^nonrev\.(\d+)\./);if(m)nr.add(+m[1]);});UNITS=[...u].sort((a,b)=>a-b);NONREV=[...nr].sort((a,b)=>a-b);}
+function deriveUnits(){const u=new Set([0]),nr=new Set(),lh=new Set();Object.keys(form).forEach(k=>{let m=k.match(/^units\.(\d+)\./);if(m)u.add(+m[1]);m=k.match(/^nonrev\.(\d+)\./);if(m)nr.add(+m[1]);m=k.match(/^lihtc\.(\d+)\./);if(m)lh.add(+m[1]);});UNITS=[...u].sort((a,b)=>a-b);NONREV=[...nr].sort((a,b)=>a-b);LIHTC=[...lh].sort((a,b)=>a-b);}
 
 function defUaSrc(i){const e=numf(get('units.'+i+'.ua_exec')),r=numf(get('units.'+i+'.ua_rcs'));return e>0?'exec':(r>0?'rcs':'custom');}
 function defSafmrSrc(i){const h=numf(get('units.'+i+'.safmr_hud')),r=numf(get('units.'+i+'.safmr_rcs'));return h>0?'hud':(r>0?'rcs':'custom');}
@@ -209,8 +209,14 @@ function renderRents(){
   let pd=`<div class="pdhead">Non-revenue units (Part D) <span class="sub">from the prior rent schedule — model / manager’s unit, etc.; excluded from rent totals</span></div>`;
   if(NONREV.length){pd+=`<div class="rgh"><span style="grid-column:1">Unit type</span><span style="grid-column:2/4">Use</span><span style="grid-column:4">Contract rent</span></div>`+NONREV.map(i=>`<div class="pdrow"><div style="grid-column:1">${brbaBox('nonrev.'+i+'.br','nonrev.'+i+'.ba')}</div><div style="grid-column:2/4">${numBox('nonrev.'+i+'.use',"e.g. Manager’s unit")}</div><div style="grid-column:4">${moneyBox('nonrev.'+i+'.rent')}</div><div class="urx" style="grid-column:7"><button class="trash" data-delnonrev="${i}" title="Delete">🗑</button></div></div>`).join('');}
   pd+=`<div class="addrow" id="addNonrev">+ Add non-revenue unit</div>`;
-  const rgHead='<div class="rgh"><span>Type</span><span>Units</span><span>Current rent</span><span>Proposed rent</span><span>Utility allowance</span><span class="safmrhead">150% SAFMR<button class="urev hudbtn" id="pullSafmr" title="Re-pull 150% ceilings from HUD for this property’s ZIP">⤓ HUD</button></span><span></span></div>';
-  return card(6,sectionPill(6),`<div class="reseff">${dateEffCell()}</div><div class="ucards">${UNITS.length?rgHead:''}${cards}</div><div class="addrow" id="addUnit">+ Add unit type</div>${_undoStack.length?(' <span class="addrow ghostlink" id="undoUnit">↩ Undo delete'+(_undoStack.length>1?(' ('+_undoStack.length+')'):'')+'</span><button class="undocommit" id="undoCommit" title="Keep deletions — dismiss undo">✓</button>'):''}<div class="partd">${pd}</div>`);}
+  const lhOn=get('lihtc.enabled')==='1';
+  let lh=`<div class="pdhead"><label class="lihtcflag"><input type="checkbox" id="lihtcToggle"${lhOn?' checked':''}> This property has LIHTC units</label>${lhOn?' <span class="sub">listed on the rent schedule as unit type + average unit rent</span>':''}</div>`;
+  if(lhOn){
+    if(LIHTC.length)lh+=`<div class="rgh"><span style="grid-column:1">Unit type</span><span style="grid-column:4">Average unit rent</span></div>`+LIHTC.map(i=>`<div class="pdrow"><div style="grid-column:1">${brbaBox('lihtc.'+i+'.br','lihtc.'+i+'.ba')}</div><div style="grid-column:4">${moneyBox('lihtc.'+i+'.avg_rent')}</div><div class="urx" style="grid-column:7"><button class="trash" data-dellihtc="${i}" title="Delete">🗑</button></div></div>`).join('');
+    lh+=`<div class="addrow" id="addLihtc">+ Add LIHTC unit type</div>`;
+  }
+  const rgHead='<div class="rgh"><span>Unit type</span><span>Units</span><span>Current rent</span><span>Proposed rent</span><span>Utility allowance</span><span class="safmrhead">150% SAFMR<button class="urev hudbtn" id="pullSafmr" title="Re-pull 150% ceilings from HUD for this property’s ZIP">⤓ HUD</button></span><span></span></div>';
+  return card(6,sectionPill(6),`<div class="reseff">${dateEffCell()}</div><div class="ucards">${UNITS.length?rgHead:''}${cards}</div><div class="addrow" id="addUnit">+ Add unit type</div>${_undoStack.length?(' <span class="addrow ghostlink" id="undoUnit">↩ Undo delete'+(_undoStack.length>1?(' ('+_undoStack.length+')'):'')+'</span><button class="undocommit" id="undoCommit" title="Keep deletions — dismiss undo">✓</button>'):''}<div class="partd">${pd}</div><div class="partd">${lh}</div>`);}
 
 const SAFMR_BR_KEY={'Studio':'efficiency','1BR':'br1','2BR':'br2','3BR':'br3','4BR':'br4'};
 let _hud={key:'',data:null,inflight:null};let _hudTimer=null;
@@ -387,8 +393,11 @@ function wireBody(){
   document.querySelectorAll('[data-deffopt]').forEach(o=>o.addEventListener('click',e=>{e.stopPropagation();_pendingSnap=snapOf(['rent_schedule.date_eff_source']);form=store.editForm(form,'rent_schedule.date_eff_source',o.getAttribute('data-deffopt'));_pending=['rent_schedule.date_eff_source'];_refocusSel='[data-box="rent_schedule.date_eff_source"] .uatrigger';renderBody();scheduleHudRefresh();}));
   document.querySelectorAll('[data-delunit]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delunit');const wasEmpty=!unitHasData(i)&&numf(get('units.'+i+'.num_units'))<=0;const snap={};Object.keys(form).forEach(k=>{if(k.indexOf('units.'+i+'.')===0){snap[k]=form[k];delete form[k];}});UNITS=UNITS.filter(x=>x!==i);if(wasEmpty){renderBody();setStatus('Empty unit type removed.');}else{_undoStack.push({i,snap});renderBody();setStatus('Unit type deleted — undo available below.');}}));
   document.querySelectorAll('[data-delnonrev]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delnonrev');['use','br','ba','rent'].forEach(s=>delete form['nonrev.'+i+'.'+s]);NONREV=NONREV.filter(x=>x!==i);renderBody();setStatus('');}));
+  document.querySelectorAll('[data-dellihtc]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-dellihtc');['br','ba','avg_rent'].forEach(s=>delete form['lihtc.'+i+'.'+s]);LIHTC=LIHTC.filter(x=>x!==i);renderBody();setStatus('');}));
   const add=el('addUnit');if(add)add.onclick=()=>{_undoStack=[];const nx=(UNITS.length?Math.max.apply(null,UNITS):-1)+1;form=store.editForm(form,'units.'+nx+'.br','');UNITS.push(nx);renderBody();setStatus('');};
   const addn=el('addNonrev');if(addn)addn.onclick=()=>{NONREV.push(NONREV.length?Math.max.apply(null,NONREV)+1:0);renderBody();setStatus('');};
+  const lt=el('lihtcToggle');if(lt)lt.onchange=()=>{form=store.editForm(form,'lihtc.enabled',lt.checked?'1':'');renderBody();setStatus(lt.checked?'LIHTC units on — they print on the rent schedule between revenue and non-revenue units.':'');};
+  const addl=el('addLihtc');if(addl)addl.onclick=()=>{const nx=(LIHTC.length?Math.max.apply(null,LIHTC):-1)+1;form=store.editForm(form,'lihtc.'+nx+'.br','');LIHTC.push(nx);renderBody();setStatus('');};
   const phs=el('pullSafmr');if(phs)phs.onclick=()=>{ensureHudSafmr({manual:true});};
   const uu=el('undoUnit');if(uu)uu.onclick=()=>{if(!_undoStack.length)return;const e=_undoStack.pop();Object.keys(e.snap).forEach(k=>{form[k]=e.snap[k];});if(UNITS.indexOf(e.i)<0)UNITS.push(e.i);UNITS.sort((a,b)=>a-b);renderBody();setStatus('Unit type restored.');};
   const uc=el('undoCommit');if(uc)uc.onclick=()=>{_undoStack=[];renderBody();setStatus('Deletions kept.');};
@@ -502,7 +511,7 @@ async function saveNow(afterSave){clearUncheckedWriteins(['e1','e2','e3','e4','e
   countlessUnits().forEach(i=>Object.keys(form).forEach(k=>{if(k.indexOf('units.'+i+'.')===0)delete form[k];}));
   NONREV.filter(nonrevEmpty).forEach(i=>Object.keys(form).forEach(k=>{if(k.indexOf('nonrev.'+i+'.')===0)delete form[k];}));
   deriveUnits();form=await store.saveToDb(form);
-  if(mpdb&&activePid)await mpdb.pruneUnitRows(activePid,UNITS,NONREV);
+  if(mpdb&&activePid)await mpdb.pruneUnitRows(activePid,UNITS,NONREV,LIHTC);
   await refreshSnap();deriveUnits();if(afterSave)afterSave();}
 function requestSave(afterSave){const meaningful=countlessUnits().filter(unitHasData);
   if(meaningful.length){dialogConfirm('Delete '+meaningful.length+' unit type'+(meaningful.length>1?'s':'')+' with no unit count?','Saving will remove unit type'+(meaningful.length>1?'s':'')+' that have entered data but no unit count. This cannot be undone after saving.','Save anyway',true,()=>saveNow(afterSave));}
