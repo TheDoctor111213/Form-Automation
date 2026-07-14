@@ -86,6 +86,7 @@
 10. Standardize RS generation for properties with excess unit types.
 11. Standardize RS generation for properties with non-section 8 units.
 12. Standardize the combination of excess unit types and non-section 8 units.
+13. Introduce a "revert to parsed data" for all relevant sections (e.g., unit types).
 
 \------------------------------------------------------------------------------------------------------------------------------
 
