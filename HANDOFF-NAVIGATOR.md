@@ -288,7 +288,25 @@ for deletion instead.
   colors, change `tintStyle` **and** `applyTint` together (they are documented
   twins).
 
-## 11. What to build first (suggested order for a Navigator port)
+## 11. Starting data & credentials (private package only)
+
+If you received this as the private zip, you also have:
+
+- **`seed-data.sql`** — real starting data: the Colonial Village property
+  (unit mix, rents, Part B, checklist, embedded letterhead) plus the shared
+  contact directories. Load it after `schema.sql`, replacing `__OWNER_ID__`
+  with your user's UUID (instructions at the top of the file). This is the
+  fastest way to see the app fully populated and to test generation against
+  known-good data. Treat it as personal data.
+- **`Colonial Village letterhead.pdf`** — the same letterhead as a standalone
+  file, for reference or re-upload through the UI.
+- **`SECRETS.md`** — the HUD USER API token and exactly where it goes. Tokens
+  are free at huduser.gov, so mint your own for production; the shared one
+  exists so the SAFMR pull works on day one.
+
+None of these are in the public repository — keep it that way.
+
+## 12. What to build first (suggested order for a Navigator port)
 
 1. Stand up option A against a scratch Supabase project (`schema.sql` + one
    user + `config.js`) and click through the app — fastest way to learn the

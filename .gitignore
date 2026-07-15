@@ -1,0 +1,5 @@
+
+# private handoff artifacts — never commit (live token slot + real contact data)
+RCS Package Automation - Navigator handoff.zip
+seed-data.sql
+SECRETS.md

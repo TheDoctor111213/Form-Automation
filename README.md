@@ -86,6 +86,14 @@ HANDOFF-NAVIGATOR.md        integration guide (written for an AI/engineer)
   `index.html` at the repo root). With Node available, `bash
   app/full-mp/deliver.sh` also runs the test suites.
 
+## Private handoff extras (not in this repository)
+
+The privately-shared handoff package additionally contains `SECRETS.md` (the
+HUD USER API token and where it lives), `seed-data.sql` (Matt's real starting
+data: the Colonial Village property and the shared contact directories), and
+the Colonial Village letterhead PDF. Those files hold a live credential and
+personal contact data — they are deliberately excluded from this public repo.
+
 ## Integrating into another system
 
 Read **`HANDOFF-NAVIGATOR.md`** — it documents the data model (flat-key
