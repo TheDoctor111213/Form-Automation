@@ -22,6 +22,12 @@ built and visible in the code, is:
   labeled with its origin (`$21 · Executed RS`, `$25 · RCS report`,
   `Custom…`). Every sourced value is always selectable by the user, forever —
   precedence only controls the *default*.
+- **Sourced options sit at the top of the dropdown**, listed in precedence
+  order, followed by `Custom…` / manual entry. In dropdowns that also carry a
+  static option list (State's 50 abbreviations, entity types, the contact
+  pickers), the sourced values go **above** the static list, visually
+  distinguished by their origin label — the user should see what the
+  API/parse/Navigator pulled before anything else.
 - **Precedence = which present source is picked by default** (see the table
   in §3, written as 1st pick > 2nd pick > 3rd pick). The reference
   implementation is `defUaSrc()`/`uaBox()` in `app.js` — copy that cell
@@ -149,7 +155,8 @@ Everything: **RS.** (Checkboxes, fuel types, write-ins.)
 ## 5. Acceptance checklist
 
 - Every cell in §3 shows its Navigator/RS/RCS values as dropdown options with
-  origin labels; missing sources read `—` and are skipped by the default.
+  origin labels, **at the top of the list in precedence order** (above any
+  static options); missing sources read `—` and are skipped by the default.
 - Precedence order matches §3 exactly; the user can always pick any listed
   source or type a custom value; existing standalone dropdowns still work.
 - Navigator outage or a property with no `navigator_property_id` degrades to
