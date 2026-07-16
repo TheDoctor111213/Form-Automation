@@ -101,6 +101,10 @@ five files below gives the whole picture; read them in this order:
   Renamed 2026-07-13 from `RCS Renewal — Multi-property (open in browser).html`.
 - Post-edit sanity gates: source **rebuilds byte-for-byte** to `index.html`, **0 NUL bytes** in every
   source file, `node --check` clean, and both test suites below pass.
+- **RA-port anchor gate** (after any `app.js`/`shell.head.html` edit): `python3 app/full-mp/build-ra.py
+  /tmp/rcs-ra-check.html` must print `built …`. Kinley's Azure port patches our pristine sources at
+  build time via assert-guarded anchor strings — see `app/full-mp/RA-PORT.md`. If it fails, an anchor
+  moved: update it in `build-ra.py` (that file ships to Kinley with every handoff).
 
 ## Tests
 

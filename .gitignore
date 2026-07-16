@@ -8,3 +8,4 @@ navigator-mock-handoff.zip
 # local tooling — Claude Code settings + worktrees, never product code
 .claude/
 .DS_Store
+_archive/Kinley/ra-port-2026-07-16/
