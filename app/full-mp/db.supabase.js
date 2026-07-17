@@ -39,6 +39,7 @@ function makeSupabaseDb(client) {
     'rent_schedule.date_rents_effective': 'date_rents_effective', 'rent_schedule.date_eff_rs': 'date_eff_rs', 'rent_schedule.date_eff_source': 'date_eff_source', 'rent_schedule.date_eff_custom': 'date_eff_custom',
     'checklist.sign_date': 'checklist_sign_date', 'tenant.date_of_notice': 'tenant_date_of_notice', 'cycle.submission_date': 'submission_date',
     'ns8.enabled': 'has_ns8', 'nonrev.enabled': 'has_nonrev',
+    'ocaf.rate_type': 'ocaf_rate_type', 'ocaf.ds_annual': 'ocaf_debt_service',
   };
   const PSCALAR_REV = {}; for (const k in PSCALAR) PSCALAR_REV[PSCALAR[k]] = k;
 
@@ -393,6 +394,19 @@ function makeSupabaseDb(client) {
           if (any) jobs.push(this.saveFlat(c.property_id, dur));
         }
         return Promise.all(jobs);
+      },
+      pruneCycleCells(cid, keepU, keepNR, keepLI) {
+        // cycle twin of pruneUnitRows: deleted unit rows must leave the snapshot too
+        const c = D.cycles[cid]; if (!c) return Promise.resolve();
+        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String));
+        const idx = (k, plen) => { const r = k.slice(plen); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
+        Object.keys(c.cells).forEach(k => {
+          if (k.indexOf('units.') === 0) { const i = idx(k, 6); if (i !== null && !ku.has(i)) delete c.cells[k]; }
+          else if (k.indexOf('nonrev.') === 0) { const i = idx(k, 7); if (i !== null && !kn.has(i)) delete c.cells[k]; }
+          else if (k.indexOf('ns8.') === 0) { const i = idx(k, 4); if (i !== null && !kl.has(i)) delete c.cells[k]; }
+        });
+        c.updated_at = now();
+        return enqueue('cy' + cid, () => pushCycle(cid));
       },
       setCyclePrograms(cid, programs) { const c = D.cycles[cid]; if (!c) return Promise.resolve(); c.programs = (programs || []).join(','); c.updated_at = now(); return enqueue('cy' + cid, () => pushCycle(cid)); },
       setCycleGenerated(cid, docs) { const c = D.cycles[cid]; if (!c) return Promise.resolve(); c.generated = { at: now(), docs: docs || [] }; c.updated_at = now(); return enqueue('cy' + cid, () => pushCycle(cid)); },

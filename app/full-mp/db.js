@@ -17,10 +17,12 @@
 
 /* ---- which flat keys are PER-CYCLE (everything else is durable) --------- */
 function isPerCycleKey(k) {
-  return /^units\.\d+\.(current|proposed|ua_exec|ua_rcs|ua_source|ua_reviewed|ua_custom|num_rcs|br_rcs|ba_rcs|num_source|num_reviewed|type_source|type_reviewed|safmr_rcs|safmr_hud|safmr_source|safmr_reviewed|safmr_custom)$/.test(k)
+  return /^units\.\d+\.(current|proposed|ua_exec|ua_rcs|ua_source|ua_reviewed|ua_custom|num_rcs|br_rcs|ba_rcs|num_source|num_reviewed|type_source|type_reviewed|safmr_rcs|safmr_hud|safmr_source|safmr_reviewed|safmr_custom|uac_[a-z]+)$/.test(k)
     || /^appr\./.test(k)
     || /^check\.\d+$/.test(k)
     || /^cycle\./.test(k)
+    || (/^ocaf\./.test(k) && k !== 'ocaf.rate_type' && k !== 'ocaf.ds_annual') // debt-service defaults live on the template
+    || /^uaf\./.test(k)
     || k === 'checklist.sign_date' || k === 'tenant.date_of_notice' || k === 'rent_schedule.date_rents_effective';
 }
 

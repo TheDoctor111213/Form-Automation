@@ -75,6 +75,8 @@ create table public.property (
   appraiser_address_zip       text,
   checklist                   jsonb not null default '{}'::jsonb,  -- {"0":"1", … "16":""}
   has_ns8                   text,          -- '1' | '' — non-Section 8 section toggle (renamed from has_lihtc)
+  ocaf_rate_type            text,          -- 'Fixed rate' | 'Floating rate' — OCAF debt-service default (template; cycles snapshot it)
+  ocaf_debt_service         text,          -- annual P&I + MIP default for the 9625 line K (template; per-cycle copy lives in cycle.cells)
   has_nonrev                  text,          -- '1' | '' — non-revenue (Part D) toggle
   created_at                  timestamptz not null default now(),
   updated_at                  timestamptz not null default now()
