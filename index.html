@@ -1960,7 +1960,9 @@ async function exitForm(){
   openLauncher(activePid);
 }
 function openExit(){const nm=get('property.name')||'this property';
-  modal('<div class="dlg-t">Save changes before leaving?</div><div class="dlg-b">You have unsaved edits to <b>'+esc(nm)+'</b>. Save them to the database so they pre-fill your next submission, or discard them and keep the last saved record.</div><div class="dlg-row"><button class="btn" id="dlgKeep">Keep editing</button><span class="dlg-sp"></span><button class="btn danger" id="dlgDiscard">Discard changes</button><button class="btn p" id="dlgSave">Save &amp; exit</button></div>');
+  const fresh=activeCid&&_cyFresh===activeCid;
+  const body=fresh?'This cycle was never saved \u2014 leaving without saving deletes it.':'You have unsaved edits to <b>'+esc(nm)+'</b>. Save them to the database so they pre-fill your next submission, or discard them and keep the last saved record.';
+  modal('<div class="dlg-t">Save changes before leaving?</div><div class="dlg-b">'+body+'</div><div class="dlg-row"><button class="btn" id="dlgKeep">Keep editing</button><span class="dlg-sp"></span><button class="btn danger" id="dlgDiscard">'+(fresh?'Delete cycle':'Discard changes')+'</button><button class="btn p" id="dlgSave">Save &amp; exit</button></div>');
   el('dlgKeep').onclick=closeModal;
   el('dlgDiscard').onclick=async()=>{form=await store.fillForm();await refreshSnap();fixSavedToggles();deriveUnits();closeModal();await exitForm();setStatus('');};
   el('dlgSave').onclick=()=>requestSave(()=>{closeModal();openLauncher(activePid);});
