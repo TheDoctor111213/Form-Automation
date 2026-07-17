@@ -196,6 +196,16 @@ function makeSupabaseDb(client) {
   const REQUIRED_DURABLE = ['property.name', 'property.fha', 'property.addr_street', 'property.addr_city', 'property.addr_state', 'property.addr_zip', 'owner.entity_name', 'sig.name', 'ca.org', 'ca.name'];
   const dv = (p, k) => (p.durable[k] && p.durable[k].value !== '' ? p.durable[k].value : '');
   const completenessOf = p => REQUIRED_DURABLE.filter(k => dv(p, k) !== '').length / REQUIRED_DURABLE.length;
+  function unitCountOfPid(pid) {
+    const domId = dominantCycleId(pid);
+    if (domId) {
+      const cells = D.cycles[domId].cells; const idx = {};
+      for (const k in cells) { const m = k.match(/^units\.(\d+)\.num_units$/); if (m && cells[k].value !== '') idx[m[1]] = num(cells[k].value); }
+      const ks = Object.keys(idx);
+      if (ks.length) return { types: ks.length, units: ks.reduce((s, i) => s + idx[i], 0) };
+    }
+    const p = D.props[pid]; return p ? unitCountOf(p) : { types: 0, units: 0 };
+  }
   function unitCountOf(p) {
     const idx = new Set(); Object.keys(p.durable).forEach(k => { const m = k.match(/^units\.(\d+)\.num_units$/); if (m && p.durable[k].value !== '') idx.add(m[1]); });
     let total = 0; idx.forEach(i => total += num(p.durable['units.' + i + '.num_units'].value)); return { types: idx.size, units: total };
@@ -212,6 +222,19 @@ function makeSupabaseDb(client) {
      Template stamp copies only durable IDENTITY keys; unit rows, Part B,
      checklist, and assets stay per-cycle / property-level respectively. */
   const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
+  /* What does NOT carry from the prevailing cycle into a NEW cycle: each
+     cycle's own outcomes (proposed rents), its year's factors, its dates, and
+     its appraiser. Everything else — unit mix, current rents, UAs and their
+     per-utility split, Part B, checklist, non-S8/non-rev rows, debt service —
+     pre-fills so a new cycle starts from the property's current reality. */
+  const cyNoCarry = k => /^units\.\d+\.proposed$/.test(k)
+    || /^appr\./.test(k)
+    || /^ocaf\.(factor_|ds_t12$|ds_f12$)/.test(k)
+    || /^uaf\./.test(k)
+    || /^rent_schedule\./.test(k)
+    || /^cycle\./.test(k)
+    || k === 'checklist.sign_date' || k === 'tenant.date_of_notice'
+    || k === 'assets.letterhead_data';
   const cyUuid = () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
   /* cycle hierarchy: year first, then program completeness
      (RCS+UAF > RCS > OCAF+UAF > OCAF > UAF), then full date, then newest */
@@ -250,7 +273,7 @@ function makeSupabaseDb(client) {
       today,
       listProperties() {
         return Object.values(D.props).map(p => {
-          const uc = unitCountOf(p);
+          const uc = unitCountOfPid(p.id);
           return {
             id: p.id, name: dv(p, 'property.name') || '(unnamed property)', fha: dv(p, 'property.fha') || '—',
             city_state: (dv(p, 'property.addr_city') || '') + (dv(p, 'property.addr_state') ? ', ' + dv(p, 'property.addr_state') : ''),
@@ -260,7 +283,11 @@ function makeSupabaseDb(client) {
           };
         }).sort((a, b) => a.name.localeCompare(b.name));
       },
-      propertyAnalysis(pid) { return computeAnalysis(loadFormCells(pid)); },
+      propertyAnalysis(pid) {
+        const domId = dominantCycleId(pid); // the dominant cycle feeds the property summary (design: menu card reads the current cycle)
+        if (domId) { const c = D.cycles[domId]; const f = {}; for (const k in c.cells) f[k] = { value: c.cells[k].value }; return computeAnalysis(f); }
+        return computeAnalysis(loadFormCells(pid));
+      },
       getActive() { return { pid: D.activePid }; },
       setActive(pid) { if (D.props[pid]) D.activePid = pid; return Promise.resolve(); },
       createProperty(name) {
@@ -367,7 +394,14 @@ function makeSupabaseDb(client) {
         const p = D.props[pid]; if (!p) throw new Error('no property ' + pid);
         const o = opts || {}; const cid = cyUuid(); const cells = {};
         if (o.full) { const m = merged(pid); for (const k in m) { if (k === 'assets.letterhead_data') continue; cells[k] = { value: m[k].value, saved_at: m[k].saved_at || today() }; } }
-        else { for (const k in p.durable) { if (!isTemplateKey(k)) continue; cells[k] = { value: p.durable[k].value, saved_at: today() }; } }
+        else {
+          const domId = dominantCycleId(pid);
+          const src = domId ? D.cycles[domId].cells : merged(pid);
+          for (const k in src) { if (cyNoCarry(k)) continue; const v = src[k].value; if (v == null || v === '') continue; cells[k] = { value: String(v), saved_at: today() }; }
+          for (const k in p.durable) { if (!isTemplateKey(k)) continue; cells[k] = { value: p.durable[k].value, saved_at: today() }; } // property record stays authoritative for identity
+          const effIn = String(o.effective_date || '').trim();
+          if (effIn) { cells['rent_schedule.date_eff_source'] = { value: 'custom', saved_at: today() }; cells['rent_schedule.date_eff_custom'] = { value: effIn, saved_at: today() }; } // the picked date lands in the form, not just on the card
+        }
         D.cycles[cid] = { id: cid, property_id: pid, programs: (o.programs || ['rcs']).join(','), label: o.label || '', effective_date: cyISO(o.effective_date) || '', cells, generated: {}, created_at: now(), updated_at: now() };
         if (o.full) cySyncEff(D.cycles[cid]);
         return enqueue('cy' + cid, () => pushCycle(cid)).then(() => ({ cid }));

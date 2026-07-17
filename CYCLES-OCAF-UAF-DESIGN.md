@@ -44,10 +44,15 @@ A cycle owns ALL transient data, and it is the *only* home of that data:
 - program selection, effective/submission dates, checklist, Part B, appraiser
 - the generated package (documents produced for this cycle)
 
-**No cycle-to-cycle transient inheritance.** A new cycle's rent data comes from the
-executed RS uploaded *for that cycle* (or manual entry) — never from a previous cycle.
-This was a deliberate decision: "which older cycle should we pull from" logic is opaque
-and error-prone; the uploaded RS is the single, visible source of truth per cycle.
+**Carry-forward (revised 2026-07-16, per Matt's testing):** a new cycle stamps from the
+**dominant cycle's snapshot** — unit mix, current rents, UAs (and their per-utility
+split), Part B, checklist, non-S8/non-rev rows, debt-service defaults, identity — so it
+starts from the property's current reality instead of empty. What never carries: the
+prior cycle's **outcomes** (proposed rents), its **factors** (OCAF/UAF pulls), its
+**dates**, and its **appraiser**. There is still no opaque "which older cycle" logic —
+the source is always the well-defined dominant cycle (else the property record), and the
+cycle's own RS upload/manual entry overwrites the prefill. The dominant cycle also feeds
+the property card's unit counts and affordability summary.
 
 **The one pragmatic exception: letterhead.** It's a multi-MB asset that almost never
 changes — it stays property-level and is NOT snapshotted per cycle. Regenerating an old

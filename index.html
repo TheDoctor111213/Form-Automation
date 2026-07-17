@@ -294,7 +294,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
 .autherr{color:#b91c1c;font-size:12px;margin-top:12px;min-height:15px}
 .mtoprightwrap{display:flex;align-items:center;gap:16px}
 .ns8flag{display:inline-flex;align-items:center;gap:8px;cursor:pointer;line-height:1.35;vertical-align:middle} .ns8flag input{accent-color:#1e3a5f;width:14px;height:14px;margin:0;flex:0 0 auto} .partd .rgh{margin-top:12px}
-.safmrhead{display:inline-flex;align-items:center;gap:6px} .rgh .hudbtn{font-size:9.5px;padding:1px 6px;letter-spacing:0;text-transform:none;font-weight:600;color:#b45309;white-space:nowrap} .rgh .hudbtn:disabled{opacity:.45;cursor:default}
+.safmrhead{display:inline-flex;align-items:center;gap:6px} .rgh .hudbtn{font-size:9.5px;padding:1px 6px;letter-spacing:0;text-transform:none;font-weight:700;color:#b45309;white-space:nowrap} .rgh .hudbtn:disabled{opacity:.45;cursor:default}
 </style></head>
 <body>
  <!-- ===================== SIGN IN ===================== -->
@@ -966,6 +966,16 @@ function makeSupabaseDb(client) {
   const REQUIRED_DURABLE = ['property.name', 'property.fha', 'property.addr_street', 'property.addr_city', 'property.addr_state', 'property.addr_zip', 'owner.entity_name', 'sig.name', 'ca.org', 'ca.name'];
   const dv = (p, k) => (p.durable[k] && p.durable[k].value !== '' ? p.durable[k].value : '');
   const completenessOf = p => REQUIRED_DURABLE.filter(k => dv(p, k) !== '').length / REQUIRED_DURABLE.length;
+  function unitCountOfPid(pid) {
+    const domId = dominantCycleId(pid);
+    if (domId) {
+      const cells = D.cycles[domId].cells; const idx = {};
+      for (const k in cells) { const m = k.match(/^units\.(\d+)\.num_units$/); if (m && cells[k].value !== '') idx[m[1]] = num(cells[k].value); }
+      const ks = Object.keys(idx);
+      if (ks.length) return { types: ks.length, units: ks.reduce((s, i) => s + idx[i], 0) };
+    }
+    const p = D.props[pid]; return p ? unitCountOf(p) : { types: 0, units: 0 };
+  }
   function unitCountOf(p) {
     const idx = new Set(); Object.keys(p.durable).forEach(k => { const m = k.match(/^units\.(\d+)\.num_units$/); if (m && p.durable[k].value !== '') idx.add(m[1]); });
     let total = 0; idx.forEach(i => total += num(p.durable['units.' + i + '.num_units'].value)); return { types: idx.size, units: total };
@@ -982,6 +992,19 @@ function makeSupabaseDb(client) {
      Template stamp copies only durable IDENTITY keys; unit rows, Part B,
      checklist, and assets stay per-cycle / property-level respectively. */
   const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
+  /* What does NOT carry from the prevailing cycle into a NEW cycle: each
+     cycle's own outcomes (proposed rents), its year's factors, its dates, and
+     its appraiser. Everything else — unit mix, current rents, UAs and their
+     per-utility split, Part B, checklist, non-S8/non-rev rows, debt service —
+     pre-fills so a new cycle starts from the property's current reality. */
+  const cyNoCarry = k => /^units\.\d+\.proposed$/.test(k)
+    || /^appr\./.test(k)
+    || /^ocaf\.(factor_|ds_t12$|ds_f12$)/.test(k)
+    || /^uaf\./.test(k)
+    || /^rent_schedule\./.test(k)
+    || /^cycle\./.test(k)
+    || k === 'checklist.sign_date' || k === 'tenant.date_of_notice'
+    || k === 'assets.letterhead_data';
   const cyUuid = () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
   /* cycle hierarchy: year first, then program completeness
      (RCS+UAF > RCS > OCAF+UAF > OCAF > UAF), then full date, then newest */
@@ -1020,7 +1043,7 @@ function makeSupabaseDb(client) {
       today,
       listProperties() {
         return Object.values(D.props).map(p => {
-          const uc = unitCountOf(p);
+          const uc = unitCountOfPid(p.id);
           return {
             id: p.id, name: dv(p, 'property.name') || '(unnamed property)', fha: dv(p, 'property.fha') || '—',
             city_state: (dv(p, 'property.addr_city') || '') + (dv(p, 'property.addr_state') ? ', ' + dv(p, 'property.addr_state') : ''),
@@ -1030,7 +1053,11 @@ function makeSupabaseDb(client) {
           };
         }).sort((a, b) => a.name.localeCompare(b.name));
       },
-      propertyAnalysis(pid) { return computeAnalysis(loadFormCells(pid)); },
+      propertyAnalysis(pid) {
+        const domId = dominantCycleId(pid); // the dominant cycle feeds the property summary (design: menu card reads the current cycle)
+        if (domId) { const c = D.cycles[domId]; const f = {}; for (const k in c.cells) f[k] = { value: c.cells[k].value }; return computeAnalysis(f); }
+        return computeAnalysis(loadFormCells(pid));
+      },
       getActive() { return { pid: D.activePid }; },
       setActive(pid) { if (D.props[pid]) D.activePid = pid; return Promise.resolve(); },
       createProperty(name) {
@@ -1137,7 +1164,14 @@ function makeSupabaseDb(client) {
         const p = D.props[pid]; if (!p) throw new Error('no property ' + pid);
         const o = opts || {}; const cid = cyUuid(); const cells = {};
         if (o.full) { const m = merged(pid); for (const k in m) { if (k === 'assets.letterhead_data') continue; cells[k] = { value: m[k].value, saved_at: m[k].saved_at || today() }; } }
-        else { for (const k in p.durable) { if (!isTemplateKey(k)) continue; cells[k] = { value: p.durable[k].value, saved_at: today() }; } }
+        else {
+          const domId = dominantCycleId(pid);
+          const src = domId ? D.cycles[domId].cells : merged(pid);
+          for (const k in src) { if (cyNoCarry(k)) continue; const v = src[k].value; if (v == null || v === '') continue; cells[k] = { value: String(v), saved_at: today() }; }
+          for (const k in p.durable) { if (!isTemplateKey(k)) continue; cells[k] = { value: p.durable[k].value, saved_at: today() }; } // property record stays authoritative for identity
+          const effIn = String(o.effective_date || '').trim();
+          if (effIn) { cells['rent_schedule.date_eff_source'] = { value: 'custom', saved_at: today() }; cells['rent_schedule.date_eff_custom'] = { value: effIn, saved_at: today() }; } // the picked date lands in the form, not just on the card
+        }
         D.cycles[cid] = { id: cid, property_id: pid, programs: (o.programs || ['rcs']).join(','), label: o.label || '', effective_date: cyISO(o.effective_date) || '', cells, generated: {}, created_at: now(), updated_at: now() };
         if (o.full) cySyncEff(D.cycles[cid]);
         return enqueue('cy' + cid, () => pushCycle(cid)).then(() => ({ cid }));
@@ -1758,7 +1792,7 @@ async function uafApplyUas(){let n=0;
 /* Keep the interaction point visually still: content above the form (the
    command cards + attention banner) can grow/shrink on any edit — measure the
    focused element before the mutation and counter-scroll the drift after. */
-function holdAnchor(fn){const a=document.activeElement;const ok=!!(a&&a!==document.body&&a.getBoundingClientRect&&document.contains(a));const t=ok?a.getBoundingClientRect().top:0;fn();if(ok&&document.contains(a)){const d=a.getBoundingClientRect().top-t;if(d)window.scrollBy(0,d);}}
+function holdAnchor(fn){let a=document.activeElement;if(!(a&&a!==document.body&&a.getBoundingClientRect&&document.contains(a)))a=null;if(!a&&_lastClickNode&&document.contains(_lastClickNode)&&(Date.now()-_lastClickAt)<2000)a=_lastClickNode;const ok=!!a;const t=ok?a.getBoundingClientRect().top:0;fn();if(ok&&document.contains(a)){const d=a.getBoundingClientRect().top-t;if(d)window.scrollBy(0,d);}}
 function renderCommand(){holdAnchor(_renderCommand);}
 function _renderCommand(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.ceil*100):0,pPro=a.ceil>0?clamp(a.pg/a.ceil*100):0;
   const conf=UNITS.filter(uaConflict).length,unres=UNITS.filter(uaUnresolved).length;
@@ -1818,7 +1852,7 @@ function _renderAttention(){const f=attnFlags();el('attn').style.display=f.lengt
 function renderBar(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.ceil*100):0,pPro=a.ceil>0?clamp(a.pg/a.ceil*100):0;const conf=UNITS.filter(uaConflict).length,unres=UNITS.filter(uaUnresolved).length;const uaOk=conf===0||unres===0;
  const bc=(st,l)=>{const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const c=st==='warn'?'#b45309':(st==='info'?'#2563eb':'#166534');return `<span class="bchip"><b style="color:${c}">${ic}</b> ${l}</span>`;};
  el('ccbar').innerHTML=`<div class="bl"><div class="minigauge"><div class="seg dark" style="width:${pCur}%"></div><div class="seg light" style="left:${pCur}%;width:${Math.max(0,pPro-pCur)}%"></div><div class="oend"></div></div><div class="mn"><b style="color:#2f7d57">${money(a.cg)}</b> current · <b style="color:#47a377">${money(a.pg)}</b> proposed · <b>${a.ceil>0?money(a.ceil):'—'}</b> ceiling · <b class="teal">${sPct(a.pct)}</b> RCS boost</div></div><div class="bchks">${bc((get('property.name')||'').trim()?'ok':'warn','Name')}${bc((get('property.fha')||'').trim()?'ok':'warn','FHA')}${bc((get('sig.name')||'').trim()?'ok':'warn','Signatory')}${bc(uaOk?'ok':'warn','UA')}${bc(a.safmrMissing||a.safmrOver?'warn':(a.safmrConflict?'info':'ok'),'SAFMR')}</div><div class="bpass" style="color:${a.ceil>0?(a.pass?'#166534':'#b91c1c'):'#64748b'}">${a.ceil>0?((a.pass?'✓ PASS':'✗ OVER')+' · '+money(Math.abs(a.headroom))):'SAFMR needed'}</div>`;}
-function renderBody(){const _sy=window.scrollY;const _anchorSel=(_refocusSel&&!_mouseFocus)?_refocusSel:_lastClickSel;let _anchorTop=null;if(_anchorSel){try{const _ac=document.querySelector(_anchorSel);if(_ac)_anchorTop=_ac.getBoundingClientRect().top;}catch(e){}}computeSecPos();const _SR={1:renderSources,2:()=>renderFieldSection(FIELD_SECTIONS[0]),3:()=>renderFieldSection(FIELD_SECTIONS[1]),4:()=>renderFieldSection(FIELD_SECTIONS[2]),5:()=>renderFieldSection(FIELD_SECTIONS[3]),6:renderRents,7:renderPartB,8:renderChecklist,9:()=>renderFieldSection(FIELD_SECTIONS[4]),10:renderOcaf,11:renderUaf};el('sections').innerHTML=visibleSections().map(n=>_SR[n]()).join('');
+function renderBody(){const _sy=window.scrollY;const _anchorSel=(_refocusSel&&!_mouseFocus)?_refocusSel:(((Date.now()-_lastClickAt)<2000)?_lastClickSel:null);let _anchorTop=null;if(_anchorSel){try{const _ac=document.querySelector(_anchorSel);if(_ac)_anchorTop=_ac.getBoundingClientRect().top;}catch(e){}}computeSecPos();const _SR={1:renderSources,2:()=>renderFieldSection(FIELD_SECTIONS[0]),3:()=>renderFieldSection(FIELD_SECTIONS[1]),4:()=>renderFieldSection(FIELD_SECTIONS[2]),5:()=>renderFieldSection(FIELD_SECTIONS[3]),6:renderRents,7:renderPartB,8:renderChecklist,9:()=>renderFieldSection(FIELD_SECTIONS[4]),10:renderOcaf,11:renderUaf};el('sections').innerHTML=visibleSections().map(n=>_SR[n]()).join('');
   wireBody();renderCommand();renderBar();renderRail();renderAttention();
   if(_refocusSel&&!_mouseFocus){try{const _f=document.querySelector(_refocusSel);if(_f&&_f.focus){_f.focus({preventScroll:true});if(/^(INPUT|TEXTAREA)$/.test(_f.tagName)&&typeof _f.setSelectionRange==='function'){const _L=(_f.value||'').length;try{_f.setSelectionRange(_L,_L);}catch(_e){}}}}catch(e){}}_refocusSel=null;
   if(_anchorSel&&_anchorTop!=null){try{const _a2=document.querySelector(_anchorSel);if(_a2){const _nt=_a2.getBoundingClientRect().top;window.scrollTo(0,window.scrollY+(_nt-_anchorTop));}else window.scrollTo(0,_sy);}catch(e){try{window.scrollTo(0,_sy);}catch(_z){}}}else{try{window.scrollTo(0,_sy);}catch(e){}}}
@@ -1935,11 +1969,17 @@ function wireBody(){
 
 document.addEventListener('click',e=>{document.querySelectorAll('.uadrop.open').forEach(x=>x.classList.remove('open'));if(_pending&&!(e.target&&e.target.closest&&e.target.closest('.uaopt,[data-cb],.cb,[data-fuel],[data-fuel3],[data-wibox],[data-mgmt],[data-csopt],.uatrigger'))){_pending=null;_pendingSnap=null;}});
 document.addEventListener('keydown',e=>{const vis=v=>{const x=el('view'+v);return x&&x.style&&x.style.display!=='none';};if(e.key==='Tab'){_pending=null;_pendingSnap=null;return;}if(e.key==='Enter'){const ae=document.activeElement;const inText=!!ae&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.type!=='checkbox';if(!inText&&_pending&&_pending.length){e.preventDefault();commitPending();}return;}if(e.key!=='Escape')return;if(el('scrim')&&el('scrim').classList&&el('scrim').classList.contains('open')){closeModal();_pending=null;_pendingSnap=null;return;}const openD=document.querySelector('.uadrop.open');if(openD){e.preventDefault();openD.classList.remove('open');return;}if(vis('Form')){if(_pending&&_pending.length){e.preventDefault();revertPending();return;}const ae=document.activeElement;const cell=(ae&&ae.closest)?ae.closest('[data-box],.cb,.wi'):null;if(cell){let _sel=null;if(ae.getAttribute){if(ae.getAttribute('data-k'))_sel='[data-k="'+ae.getAttribute('data-k')+'"]';else if(ae.getAttribute('data-cb'))_sel='[data-cb="'+ae.getAttribute('data-cb')+'"]';else if(ae.classList&&ae.classList.contains('uatrigger'))_sel='[data-box="'+(cell.getAttribute('data-box')||'')+'"] .uatrigger';}_refocusSel=_sel;if(revertCellIfOver(cell)){e.preventDefault();return;}_refocusSel=null;}requestExit();return;}if(vis('Launcher')||vis('Contacts')){openMenu();}});
-let _mouseFocus=false,_lastClickSel=null;
+let _mouseFocus=false,_lastClickSel=null,_lastClickNode=null,_lastClickAt=0;
 document.addEventListener('mousedown',e=>{_mouseFocus=true;setTimeout(()=>{_mouseFocus=false;},60);
-  _lastClickSel=null;const t=e.target;
-  if(t&&t.closest){const pick=(attr)=>{const n=t.closest('['+attr+']');return n?('['+attr+'="'+n.getAttribute(attr)+'"]'):null;}
-    _lastClickSel=pick('data-cb')||pick('data-wibox')||pick('data-fuel')||pick('data-fuel3')||pick('data-box');}
+  const t=e.target;_lastClickSel=null;_lastClickNode=(t&&t.getBoundingClientRect)?t:null;_lastClickAt=Date.now();
+  if(!t||!t.closest)return;
+  // a click's anchor: the cell it hit; else the checkbox its label wraps; else the section card; else the footer
+  const attrSel=()=>{const A=['data-cb','data-wibox','data-fuel','data-fuel3','data-box'];for(let i=0;i<A.length;i++){const n=t.closest('['+A[i]+']');if(n)return '['+A[i]+'="'+n.getAttribute(A[i])+'"]';}return null;};
+  let sel=attrSel();
+  if(!sel){const lb=t.closest('.cb,.wi,.utrow');const inner=lb&&lb.querySelector('[data-cb],[data-wibox]');if(inner)sel=inner.hasAttribute('data-cb')?('[data-cb="'+inner.getAttribute('data-cb')+'"]'):('[data-wibox="'+inner.getAttribute('data-wibox')+'"]');}
+  if(!sel){const cd=t.closest('#sections .card');if(cd){const all=[].slice.call(document.querySelectorAll('#sections .card'));const i=all.indexOf(cd);if(i>=0)sel='#sections .card:nth-child('+(i+1)+')';}}
+  if(!sel&&t.closest('.footer'))sel='.footer';
+  _lastClickSel=sel;
 },true);
 window.addEventListener('scroll',()=>{const s=window.scrollY>150;if(s!==document.body.classList.contains('scrolled'))document.body.classList.toggle('scrolled',s);});
 
