@@ -247,7 +247,8 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
 .mtopright{color:#cdd9ea}.mtopright:hover{color:#fff}
 .subtle{color:#9aa4b8;font-weight:400;font-size:10px;text-transform:none;letter-spacing:0}
 .reseff{max-width:300px;margin-bottom:16px}
-.cycard{background:#fff;border:1px solid #e6ebf3;border-radius:10px;padding:12px 14px;margin-bottom:9px;text-align:left}
+.cycard{background:#fff;border:1px solid #e6ebf3;border-radius:10px;padding:12px 14px;margin-bottom:9px;text-align:left;cursor:pointer}
+.cycard:hover{border-color:#c7cede;box-shadow:0 2px 8px rgba(20,40,80,.08)}
 .cycard.dom{border-color:#2563eb;box-shadow:0 1px 6px rgba(37,99,235,.12)}
 .cy-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cychip{font-size:10.5px;font-weight:800;letter-spacing:.4px;padding:3px 9px;border-radius:20px;background:#e8f0fe;color:#2563eb}
@@ -256,7 +257,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
 .cy-st{margin-left:auto;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:#eceff5;color:#8791a5}
 .cy-st.ok{background:#dcfce7;color:#166534}
 .cy-line{font-size:12px;color:#4b5563;margin-top:6px}
-.cy-act{display:flex;gap:10px;align-items:center;margin-top:8px}
+.cy-act{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:8px}
 .cypick{display:flex;flex-direction:column;gap:6px;margin-top:4px}
 .cyopt{display:flex;align-items:center;gap:8px;font-size:13px;color:#33405c;cursor:pointer}
 .cyopt input{width:14px;height:14px;accent-color:#1e3a5f;margin:0;flex:0 0 auto}
@@ -1772,18 +1773,18 @@ function cyclesHtml(){
   return btn+cs.map(c=>{
     const a=mpdb.cycleAnalysis(c.id);
     const gen=c.generated&&c.generated.at;
-    return '<div class="cycard'+(c.dominant?' dom':'')+'">'
+    return '<div class="cycard'+(c.dominant?' dom':'')+'" data-cyopen="'+c.id+'">'
       +'<div class="cy-h">'+progChips(c.programs)+'<b class="cy-t">'+esc(c.label||'(no year)')+(c.effective_date?' \u00b7 effective '+esc(fmtDate(c.effective_date)):'')+'</b>'
       +(c.dominant?'<span class="cy-dom">current \u00b7 sets the property record</span>':'')
       +'<span class="cy-st'+(gen?' ok':'')+'">'+(gen?'Package generated':'Draft')+'</span></div>'
       +rcsAffPane(a)
-      +'<div class="cy-act"><button class="btn sm" data-cyopen="'+c.id+'">Open</button><button class="txtbtn del" data-cydel="'+c.id+'">Delete</button></div></div>';
+      +'<div class="cy-act"><button class="txtbtn del" data-cydel="'+c.id+'">Delete</button></div></div>';
   }).join('');
 }
 function wireCycles(){
   const b=el('bNewCycle');if(b)b.onclick=newCycleDialog;
   document.querySelectorAll('[data-cyopen]').forEach(x=>x.onclick=()=>openCycleForm(x.getAttribute('data-cyopen')));
-  document.querySelectorAll('[data-cydel]').forEach(x=>x.onclick=()=>{const id=x.getAttribute('data-cydel');
+  document.querySelectorAll('[data-cydel]').forEach(x=>x.onclick=(e)=>{e.stopPropagation();const id=x.getAttribute('data-cydel');
     dialogConfirm('Delete cycle','This permanently removes the cycle and its saved data. The property record is untouched.','Delete',true,async()=>{try{await mpdb.deleteCycle(id);renderLauncher();}catch(e){saveFailedModal(e);}});});
 }
 function bootstrapFirstCycle(p){

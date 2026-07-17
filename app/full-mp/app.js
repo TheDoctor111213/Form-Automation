@@ -639,18 +639,18 @@ function cyclesHtml(){
   return btn+cs.map(c=>{
     const a=mpdb.cycleAnalysis(c.id);
     const gen=c.generated&&c.generated.at;
-    return '<div class="cycard'+(c.dominant?' dom':'')+'">'
+    return '<div class="cycard'+(c.dominant?' dom':'')+'" data-cyopen="'+c.id+'">'
       +'<div class="cy-h">'+progChips(c.programs)+'<b class="cy-t">'+esc(c.label||'(no year)')+(c.effective_date?' \u00b7 effective '+esc(fmtDate(c.effective_date)):'')+'</b>'
       +(c.dominant?'<span class="cy-dom">current \u00b7 sets the property record</span>':'')
       +'<span class="cy-st'+(gen?' ok':'')+'">'+(gen?'Package generated':'Draft')+'</span></div>'
       +rcsAffPane(a)
-      +'<div class="cy-act"><button class="btn sm" data-cyopen="'+c.id+'">Open</button><button class="txtbtn del" data-cydel="'+c.id+'">Delete</button></div></div>';
+      +'<div class="cy-act"><button class="txtbtn del" data-cydel="'+c.id+'">Delete</button></div></div>';
   }).join('');
 }
 function wireCycles(){
   const b=el('bNewCycle');if(b)b.onclick=newCycleDialog;
   document.querySelectorAll('[data-cyopen]').forEach(x=>x.onclick=()=>openCycleForm(x.getAttribute('data-cyopen')));
-  document.querySelectorAll('[data-cydel]').forEach(x=>x.onclick=()=>{const id=x.getAttribute('data-cydel');
+  document.querySelectorAll('[data-cydel]').forEach(x=>x.onclick=(e)=>{e.stopPropagation();const id=x.getAttribute('data-cydel');
     dialogConfirm('Delete cycle','This permanently removes the cycle and its saved data. The property record is untouched.','Delete',true,async()=>{try{await mpdb.deleteCycle(id);renderLauncher();}catch(e){saveFailedModal(e);}});});
 }
 function bootstrapFirstCycle(p){
