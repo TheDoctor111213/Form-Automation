@@ -74,16 +74,18 @@ function makeSupabaseDb(client) {
   };
 
   async function load() {
-    const [pr, ur, nr, li, ct, dr] = await Promise.all([
+    const [pr, ur, nr, li, ct, dr, cy] = await Promise.all([
       client.from('property').select('*'),
       client.from('unit_type').select('*'),
       client.from('nonrev_unit').select('*'),
       client.from('ns8_unit').select('*'),
       client.from('pm_contact').select('*'),
       client.from('app_contact').select('*'),
+      client.from('cycle').select('*'),
     ]);
-    for (const q of [pr, ur, nr, li, ct, dr]) if (q && q.error) throw q.error;
-    D = { props: {}, contacts: [], dir: [], activePid: null };
+    for (const q of [pr, ur, nr, li, ct, dr, cy]) if (q && q.error) throw q.error;
+    D = { props: {}, contacts: [], dir: [], activePid: null, cycles: {} };
+    ((cy && cy.data) || []).forEach(c => { D.cycles[c.id] = { id: c.id, property_id: c.property_id, programs: c.programs || '', label: c.label || '', effective_date: c.effective_date || '', cells: c.cells || {}, generated: c.generated || {}, created_at: c.created_at || '', updated_at: c.updated_at || c.created_at || '' }; });
     (pr.data || []).forEach(r => {
       const sa = String(r.updated_at || '').slice(0, 10);
       const p = { id: r.id, created_at: String(r.created_at || '').slice(0, 10), updated_at: r.updated_at || r.created_at, durable: {}, percycle: {} };
@@ -205,7 +207,27 @@ function makeSupabaseDb(client) {
   }
   const touch = pid => { if (D.props[pid]) D.props[pid].updated_at = now(); };
 
-  /* ---- init -------------------------------------------------------------- */
+  /* ---- cycles: one row = a complete frozen snapshot ------------------------
+     Template stamp copies only durable IDENTITY keys; unit rows, Part B,
+     checklist, and assets stay per-cycle / property-level respectively. */
+  const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
+  const cyUuid = () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
+  const cyRentSetting = c => /rcs|ocaf/.test(c.programs || '');
+  const cyclesOf = pid => Object.values(D.cycles || {}).filter(c => c.property_id === pid);
+  function dominantCycleId(pid) {
+    const cs = cyclesOf(pid); if (!cs.length) return null;
+    cs.sort((a, b) => String(b.effective_date || '').localeCompare(String(a.effective_date || ''))
+      || ((cyRentSetting(b) ? 1 : 0) - (cyRentSetting(a) ? 1 : 0))
+      || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    return cs[0].id;
+  }
+  async function pushCycle(cid) {
+    const c = D.cycles[cid]; if (!c) return;
+    const r = await client.from('cycle').upsert({ id: c.id, property_id: c.property_id, programs: c.programs, label: c.label, effective_date: c.effective_date, cells: c.cells, generated: c.generated, updated_at: now() });
+    if (r.error) throw r.error;
+  }
+
+  /* ---- init ------------------------------------------------------------ */
   return (async () => {
     await load();
     return {
@@ -318,6 +340,45 @@ function makeSupabaseDb(client) {
         await client.from('app_contact').delete().not('id', 'is', null);
         D = { props: {}, contacts: [], dir: [], activePid: null };
       },
+      /* ---- cycle surface ---- */
+      listCycles(pid) {
+        const dom = dominantCycleId(pid);
+        return cyclesOf(pid).map(c => ({ id: c.id, programs: (c.programs || '').split(',').filter(Boolean), label: c.label, effective_date: c.effective_date, generated: c.generated || {}, dominant: c.id === dom, created_at: c.created_at, updated_at: c.updated_at }))
+          .sort((a, b) => ((b.dominant ? 1 : 0) - (a.dominant ? 1 : 0)) || String(b.effective_date || '').localeCompare(String(a.effective_date || '')));
+      },
+      dominantCycleId,
+      cycleAnalysis(cid) { const c = D.cycles[cid]; const f = {}; if (c) for (const k in c.cells) f[k] = { value: c.cells[k].value }; return computeAnalysis(f); },
+      createCycle(pid, opts) {
+        const p = D.props[pid]; if (!p) throw new Error('no property ' + pid);
+        const o = opts || {}; const cid = cyUuid(); const cells = {};
+        if (o.full) { const m = merged(pid); for (const k in m) { if (k === 'assets.letterhead_data') continue; cells[k] = { value: m[k].value, saved_at: m[k].saved_at || today() }; } }
+        else { for (const k in p.durable) { if (!isTemplateKey(k)) continue; cells[k] = { value: p.durable[k].value, saved_at: today() }; } }
+        D.cycles[cid] = { id: cid, property_id: pid, programs: (o.programs || ['rcs']).join(','), label: o.label || '', effective_date: o.effective_date || '', cells, generated: {}, created_at: now(), updated_at: now() };
+        return enqueue('cy' + cid, () => pushCycle(cid)).then(() => ({ cid }));
+      },
+      deleteCycle(cid) {
+        delete D.cycles[cid];
+        return enqueue('cy' + cid, async () => { const r = await client.from('cycle').delete().eq('id', cid); if (r.error) throw r.error; });
+      },
+      getFlatCycle(cid) {
+        const c = D.cycles[cid]; if (!c) return {};
+        const out = {}; for (const k in c.cells) out[k] = { value: c.cells[k].value == null ? '' : String(c.cells[k].value), source: 'database', saved_at: c.cells[k].saved_at || '' };
+        return out;
+      },
+      saveFlatCycle(cid, map) {
+        const c = D.cycles[cid]; if (!c) throw new Error('no cycle ' + cid);
+        for (const k in map) c.cells[k] = { value: (map[k] && map[k].value != null) ? String(map[k].value) : '', saved_at: (map[k] && map[k].saved_at) ? map[k].saved_at : today() };
+        c.updated_at = now();
+        const jobs = [enqueue('cy' + cid, () => pushCycle(cid))];
+        // dominant cycle: durable identity edits write through to the template
+        if (dominantCycleId(c.property_id) === cid) {
+          const dur = {}; let any = false;
+          for (const k in map) if (isTemplateKey(k)) { dur[k] = map[k]; any = true; }
+          if (any) jobs.push(this.saveFlat(c.property_id, dur));
+        }
+        return Promise.all(jobs);
+      },
+      setCycleGenerated(cid, docs) { const c = D.cycles[cid]; if (!c) return Promise.resolve(); c.generated = { at: now(), docs: docs || [] }; c.updated_at = now(); return enqueue('cy' + cid, () => pushCycle(cid)); },
       computeAnalysis, computeSalutation,
     };
   })();

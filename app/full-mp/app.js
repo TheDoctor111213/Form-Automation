@@ -42,8 +42,8 @@ SEED['partb.writein.u1.fuel']=['',D];
 CHECKLIST_FLAT.forEach((it,i)=>{const off=/scope of repair/i.test(it)||/scope of work/i.test(it);SEED['check.'+i]=[off?'':'1',D];});
 const ALL_KEYS=Object.keys(SEED).map(k=>({key:k}));
 
-let mpdb=null, activePid=null;
-const bridge={getDb:async()=>mpdb?mpdb.getFlat(activePid):{},saveDb:async(m)=>mpdb.saveFlat(activePid,m),clearDb:async()=>{}};
+let mpdb=null, activePid=null, activeCid=null;
+const bridge={getDb:async()=>mpdb?(activeCid?mpdb.getFlatCycle(activeCid):mpdb.getFlat(activePid)):{},saveDb:async(m)=>activeCid?mpdb.saveFlatCycle(activeCid,m):mpdb.saveFlat(activePid,m),clearDb:async()=>{}};
 const store=makeStore(bridge,ALL_KEYS);
 let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let NS8=[]; let _undoStack=[]; let _undoNR=[]; let _undoLI=[]; let _pending=null,_refocusSel=null,_pendingSnap=null; let _rcsUpload=null;
 
@@ -569,7 +569,7 @@ function dialogConfirm(title,body,okLabel,danger,onOk){
 }
 
 /* ---- MENU: the property gallery -------------------------------------- */
-function openMenu(){renderMenu();show('Menu');}
+function openMenu(){activeCid=null;renderMenu();show('Menu');}
 function renderMenu(){
   const q=((el('menuSearch')&&el('menuSearch').value)||'').toLowerCase();
   const all=mpdb.listProperties();
@@ -615,7 +615,7 @@ function createProperty(){
 }
 
 /* ---- LAUNCHER: property summary + program picker --------------------- */
-function openLauncher(pid){activePid=pid;renderLauncher();show('Launcher');}
+function openLauncher(pid){activePid=pid;activeCid=null;renderLauncher();show('Launcher');}
 function docIcon(){return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c86a2" stroke-width="1.6" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';}
 function rcsAffPane(a){
   if(!a.total_units)return '<div class="aff-empty">Add unit types &amp; rents to see the affordability check.</div>';
@@ -625,6 +625,81 @@ function rcsAffPane(a){
     +'<div class="aff-body"><div class="aff-left"><div class="aff-gauge"><div class="seg dark" style="width:'+pCur+'%"></div><div class="seg light" style="left:'+pCur+'%;width:'+Math.max(0,pPro-pCur)+'%"></div><div class="oend"></div></div>'
       +'<div class="aff-anchors"><span><b style="color:#2f7d57">'+money(a.current_gpr)+'</b><i>current</i></span><span><b style="color:#47a377">'+money(a.proposed_gpr)+'</b><i>proposed</i></span><span><b>'+money(a.ceiling)+'</b><i>150% ceiling</i></span></div></div>'
     +'<div class="aff-right"><span><b class="teal">'+sPct(a.pct)+'</b><i>increase</i></span><span><b>'+sMoney(a.per_unit)+'</b><i>per unit</i></span><span><b>'+sMoney(dMo)+'</b><i>/mo</i></span><span><b>'+sK(dYr)+'</b><i>/yr</i></span></div></div></div>';}
+/* ---- CYCLES: property-page cards + create picker ----------------------
+   A cycle is a complete frozen snapshot (see CYCLES-OCAF-UAF-DESIGN.md).
+   The dominant cycle (latest effective date; rent-setting beats UAF-only)
+   is elevated, feeds the summary, and is the only cycle whose durable
+   saves update the property record. */
+const PROG_NAMES={rcs:'RCS',ocaf:'OCAF',uaf:'UAF'};
+function progChips(list){return (list||[]).map(x=>'<span class="cychip">'+(PROG_NAMES[x]||String(x).toUpperCase())+'</span>').join('');}
+function cyclesHtml(){
+  const cs=mpdb.listCycles(activePid);
+  const btn='<button class="btn p" id="bNewCycle" style="margin-bottom:10px">+ Start new cycle</button>';
+  if(!cs.length)return btn+'<div class="lh-note">No cycles yet \u2014 start one to work on this property\u2019s renewal.</div>';
+  return btn+cs.map(c=>{
+    const a=mpdb.cycleAnalysis(c.id);
+    const gen=c.generated&&c.generated.at;
+    const line=(a.total_units&&a.proposed_gpr)?((a.pass?'PASS':'OVER')+' \u00b7 '+sPct(a.pct)+' \u00b7 '+money(a.proposed_gpr)+'/mo'):(a.total_units?'rents not entered yet':'no unit data yet');
+    return '<div class="cycard'+(c.dominant?' dom':'')+'">'
+      +'<div class="cy-h">'+progChips(c.programs)+'<b class="cy-t">'+esc(c.label||'(no year)')+(c.effective_date?' \u00b7 effective '+esc(fmtDate(c.effective_date)):'')+'</b>'
+      +(c.dominant?'<span class="cy-dom">current \u00b7 sets the property record</span>':'')
+      +'<span class="cy-st'+(gen?' ok':'')+'">'+(gen?'Package generated':'Draft')+'</span></div>'
+      +'<div class="cy-line">'+line+'</div>'
+      +'<div class="cy-act"><button class="btn sm" data-cyopen="'+c.id+'">Open</button><button class="txtbtn del" data-cydel="'+c.id+'">Delete</button></div></div>';
+  }).join('');
+}
+function wireCycles(){
+  const b=el('bNewCycle');if(b)b.onclick=newCycleDialog;
+  document.querySelectorAll('[data-cyopen]').forEach(x=>x.onclick=()=>openCycleForm(x.getAttribute('data-cyopen')));
+  document.querySelectorAll('[data-cydel]').forEach(x=>x.onclick=()=>{const id=x.getAttribute('data-cydel');
+    dialogConfirm('Delete cycle','This permanently removes the cycle and its saved data. The property record is untouched.','Delete',true,async()=>{try{await mpdb.deleteCycle(id);renderLauncher();}catch(e){saveFailedModal(e);}});});
+}
+function bootstrapFirstCycle(p){
+  // migration: an existing single-record property becomes its own cycle #1
+  window.__cyBoot=window.__cyBoot||{};
+  if(mpdb.listCycles(activePid).length||window.__cyBoot[activePid])return;
+  if(!(p&&p.total_units>0))return;   // real unit data = a record worth migrating; a fresh name-only property is not
+  window.__cyBoot[activePid]=1;
+  const m=mpdb.getFlat(activePid);
+  const eff=(m['rent_schedule.date_rents_effective']&&m['rent_schedule.date_rents_effective'].value)||'';
+  const yr=(String(eff).match(/(\d{4})/)||[])[1]||String(new Date().getFullYear());
+  const pid=activePid;
+  mpdb.createCycle(pid,{full:true,programs:['rcs'],label:yr,effective_date:eff})
+    .then(()=>{if(activePid===pid)renderLauncher();})
+    .catch(e=>saveFailedModal(e));
+}
+function newCycleDialog(){
+  modal('<div class="dlg-t">Start new cycle</div>'
+    +'<div class="dlg-field"><label>This cycle completes</label>'
+    +'<div class="cypick"><label class="cyopt"><input type="checkbox" id="cyRCS"> RCS \u2014 5-year market reset</label>'
+    +'<label class="cyopt"><input type="checkbox" id="cyOCAF"> OCAF \u2014 annual factor adjustment</label>'
+    +'<label class="cyopt"><input type="checkbox" id="cyUAF"> UAF \u2014 utility allowance factor</label></div></div>'
+    +'<div class="dlg-field"><label>Rents effective (mm/dd/yyyy)</label><input id="cyEff" autocomplete="off" placeholder="10/01/2026"></div>'
+    +'<div class="autherr" id="cyErr"></div>'
+    +'<div class="dlg-row"><button class="btn" id="dlgCancel">Cancel</button><span class="dlg-sp"></span><button class="btn p" id="dlgOk">Create</button></div>');
+  const rcs=el('cyRCS'),ocaf=el('cyOCAF'),uaf=el('cyUAF'),err=el('cyErr');
+  rcs.onchange=()=>{if(rcs.checked)ocaf.checked=false;};   // RCS and OCAF never share a year
+  ocaf.onchange=()=>{if(ocaf.checked)rcs.checked=false;};
+  el('dlgCancel').onclick=closeModal;
+  el('dlgOk').onclick=async()=>{
+    const programs=[];if(rcs.checked)programs.push('rcs');if(ocaf.checked)programs.push('ocaf');if(uaf.checked)programs.push('uaf');
+    if(!programs.length){err.textContent='Pick at least one program.';return;}
+    const eff=fmtDateInput((el('cyEff').value||'').trim());
+    const label=(eff.match(/(\d{4})/)||[])[1]||String(new Date().getFullYear());
+    closeModal();
+    try{const r=await mpdb.createCycle(activePid,{programs,label,effective_date:eff});renderLauncher();openCycleForm(r.cid);}catch(e){saveFailedModal(e);}
+  };
+}
+async function openCycleForm(cid){
+  activeCid=cid;
+  const cy=mpdb.listCycles(activePid).find(c=>c.id===cid);
+  activeProgram=cy?cy.programs.map(x=>PROG_NAMES[x]||x).join(' + '):'RCS';
+  _undoStack=[];_undoNR=[];_undoLI=[];_rcsUpload=null;
+  await mpdb.setActive(activePid);await refreshSnap();form=await store.fillForm();
+  fixSavedToggles();applyChecklistDefaults();deriveUnits();renderFormHeader();renderBody();
+  show('Form');window.scrollTo(0,0);
+  if(cy&&cy.dominant)ensureHudSafmr({});   // auto-pulls only on the dominant cycle
+}
 function renderLauncher(){
   const p=mpdb.listProperties().find(x=>x.id===activePid);if(!p){openMenu();return;}
   const pct=Math.round(p.completeness*100);const a=mpdb.propertyAnalysis(activePid);const lh=mpdb.getLetterhead(activePid);
@@ -641,10 +716,9 @@ function renderLauncher(){
       +(p.entity?'<div class="lh-entity">'+esc(p.entity)+'</div>':'')+'</div>'
       +'<div class="lh-right"><div class="lh-tools"><button class="txtbtn" id="pRename">Rename</button><span class="dotsep">&middot;</span><button class="txtbtn del" id="pDelete">Delete</button></div><div class="lh-ring">'+ringSvg(pct,46)+'</div><div class="lh-rlab">'+pct+'% complete</div></div></div>'
     +'<div class="lsec"><div class="lsec-t">Property letterhead</div>'+letter+'<div class="lh-note">The Related Affordable cover-letter and ownership-entity letterheads are constant &mdash; built into the templates. Only the property&rsquo;s own letterhead (used on the tenant notice) is uploaded here.</div><input type="file" id="lhFile" accept="image/*,.pdf,application/pdf" style="display:none"></div>'
-    +'<div class="lsec"><div class="lsec-t">Choose a program</div>'
-      +'<button class="progcard active" id="openRCS"><div class="pg-h"><span class="pg-code">RCS</span><span class="pg-arrow">Open &rarr;</span></div><div class="pg-name">Rent Comparability Study</div>'+rcsAffPane(a)+'</button>'
-      +'<div class="progrow">'+soon('OCAF','Operating Cost Adjustment Factor')+soon('UAF','Utility Allowance Factor')+soon('BBRA','Budget-Based Rent Adjustment')+'</div></div>';
-  el('openRCS').onclick=()=>openForm('RCS');
+    +'<div class="lsec"><div class="lsec-t">Cycles</div>'+cyclesHtml()+'<div class="progrow" style="margin-top:10px">'+soon('BBRA','Budget-Based Rent Adjustment')+'</div></div>';
+  wireCycles();
+  bootstrapFirstCycle(p);
   el('pRename').onclick=()=>dialogInput('Rename property','Property name',p.name,'Save',async nm=>{if(!nm)return;try{await mpdb.renameProperty(activePid,nm);renderLauncher();}catch(e){saveFailedModal(e);}});
   el('pDelete').onclick=()=>dialogConfirm('Delete property','This permanently removes <b>'+esc(p.name)+'</b> and its stored record.','Delete',true,async()=>{try{await mpdb.deleteProperty(activePid);openMenu();}catch(e){saveFailedModal(e);}});
   wireLetterhead();
