@@ -221,6 +221,14 @@ function makeSupabaseDb(client) {
       || String(b.created_at || '').localeCompare(String(a.created_at || '')));
     return cs[0].id;
   }
+  const cyISO = v => { v = String(v || '').trim(); if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10); const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return m ? (m[3] + '-' + ('0' + m[1]).slice(-2) + '-' + ('0' + m[2]).slice(-2)) : ''; };
+  function cySyncEff(c) {
+    // the form's date-rents-effective drives the cycle's date + year label
+    const src = (c.cells['rent_schedule.date_eff_source'] || {}).value;
+    const eff = cyISO(src === 'custom' ? (c.cells['rent_schedule.date_eff_custom'] || {}).value
+      : ((c.cells['rent_schedule.date_eff_rs'] || {}).value || (c.cells['rent_schedule.date_eff_custom'] || {}).value));
+    if (eff) { c.effective_date = eff; const y = eff.slice(0, 4); if (y) c.label = y; }
+  }
   async function pushCycle(cid) {
     const c = D.cycles[cid]; if (!c) return;
     const r = await client.from('cycle').upsert({ id: c.id, property_id: c.property_id, programs: c.programs, label: c.label, effective_date: c.effective_date, cells: c.cells, generated: c.generated, updated_at: now() });
@@ -353,7 +361,8 @@ function makeSupabaseDb(client) {
         const o = opts || {}; const cid = cyUuid(); const cells = {};
         if (o.full) { const m = merged(pid); for (const k in m) { if (k === 'assets.letterhead_data') continue; cells[k] = { value: m[k].value, saved_at: m[k].saved_at || today() }; } }
         else { for (const k in p.durable) { if (!isTemplateKey(k)) continue; cells[k] = { value: p.durable[k].value, saved_at: today() }; } }
-        D.cycles[cid] = { id: cid, property_id: pid, programs: (o.programs || ['rcs']).join(','), label: o.label || '', effective_date: o.effective_date || '', cells, generated: {}, created_at: now(), updated_at: now() };
+        D.cycles[cid] = { id: cid, property_id: pid, programs: (o.programs || ['rcs']).join(','), label: o.label || '', effective_date: cyISO(o.effective_date) || '', cells, generated: {}, created_at: now(), updated_at: now() };
+        if (o.full) cySyncEff(D.cycles[cid]);
         return enqueue('cy' + cid, () => pushCycle(cid)).then(() => ({ cid }));
       },
       deleteCycle(cid) {
@@ -368,6 +377,7 @@ function makeSupabaseDb(client) {
       saveFlatCycle(cid, map) {
         const c = D.cycles[cid]; if (!c) throw new Error('no cycle ' + cid);
         for (const k in map) c.cells[k] = { value: (map[k] && map[k].value != null) ? String(map[k].value) : '', saved_at: (map[k] && map[k].saved_at) ? map[k].saved_at : today() };
+        cySyncEff(c);
         c.updated_at = now();
         const jobs = [enqueue('cy' + cid, () => pushCycle(cid))];
         // dominant cycle: durable identity edits write through to the template

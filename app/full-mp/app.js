@@ -631,6 +631,9 @@ function rcsAffPane(a){
    is elevated, feeds the summary, and is the only cycle whose durable
    saves update the property record. */
 const PROG_NAMES={rcs:'RCS',ocaf:'OCAF',uaf:'UAF'};
+const MONTHS_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fmtDateLong(v){v=String(v||'').trim();let y,m,dd;let g=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(g){y=+g[1];m=+g[2];dd=+g[3];}else{g=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(g){m=+g[1];dd=+g[2];y=+g[3];}}
+  return (m>=1&&m<=12)?(MONTHS_LONG[m-1]+' '+dd+', '+y):v;}
 function progChips(list){return (list||[]).map(x=>'<span class="cychip">'+(PROG_NAMES[x]||String(x).toUpperCase())+'</span>').join('');}
 function cyclesHtml(){
   const cs=mpdb.listCycles(activePid);
@@ -640,7 +643,7 @@ function cyclesHtml(){
     const a=mpdb.cycleAnalysis(c.id);
     const gen=c.generated&&c.generated.at;
     return '<div class="cycard'+(c.dominant?' dom':'')+'" data-cyopen="'+c.id+'">'
-      +'<div class="cy-h">'+progChips(c.programs)+'<b class="cy-t">'+esc(c.label||'(no year)')+(c.effective_date?' \u00b7 effective '+esc(fmtDate(c.effective_date)):'')+'</b>'
+      +'<div class="cy-h">'+progChips(c.programs)+'<b class="cy-t">'+esc(c.label||'(no year)')+(c.effective_date?' \u00b7 effective '+esc(fmtDateLong(c.effective_date)):'')+'</b>'
       +(c.dominant?'<span class="cy-dom">current \u00b7 sets the property record</span>':'')
       +'<span class="cy-st'+(gen?' ok':'')+'">'+(gen?'Package generated':'Draft')+'</span></div>'
       +rcsAffPane(a)
