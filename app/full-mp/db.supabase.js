@@ -285,7 +285,7 @@ function makeSupabaseDb(client) {
       },
       propertyAnalysis(pid) {
         const domId = dominantCycleId(pid); // the dominant cycle feeds the property summary (design: menu card reads the current cycle)
-        if (domId) { const c = D.cycles[domId]; const f = {}; for (const k in c.cells) f[k] = { value: c.cells[k].value }; return computeAnalysis(f); }
+        if (domId) return this.cycleAnalysis(domId);
         return computeAnalysis(loadFormCells(pid));
       },
       getActive() { return { pid: D.activePid }; },
@@ -389,7 +389,15 @@ function makeSupabaseDb(client) {
           .sort((a, b) => ((b.dominant ? 1 : 0) - (a.dominant ? 1 : 0)) || cyCompare(D.cycles[a.id], D.cycles[b.id]));
       },
       dominantCycleId,
-      cycleAnalysis(cid) { const c = D.cycles[cid]; const f = {}; if (c) for (const k in c.cells) f[k] = { value: c.cells[k].value }; return computeAnalysis(f); },
+      cycleAnalysis(cid) {
+        const c = D.cycles[cid]; const f = {}; if (!c) return computeAnalysis(f);
+        for (const k in c.cells) f[k] = { value: c.cells[k].value };
+        if ((c.programs || '').indexOf('rcs') < 0) { // OCAF/UAF: proposed falls back to current
+          for (const k in f) { const m = k.match(/^units\.(\d+)\.current$/); if (!m) continue;
+            const pk = 'units.' + m[1] + '.proposed'; if (!(f[pk] && parseFloat(f[pk].value) > 0)) f[pk] = { value: f[k].value }; }
+        }
+        return computeAnalysis(f);
+      },
       createCycle(pid, opts) {
         const p = D.props[pid]; if (!p) throw new Error('no property ' + pid);
         const o = opts || {}; const cid = cyUuid(); const cells = {};
@@ -412,7 +420,7 @@ function makeSupabaseDb(client) {
       },
       getFlatCycle(cid) {
         const c = D.cycles[cid]; if (!c) return {};
-        const out = {}; for (const k in c.cells) out[k] = { value: c.cells[k].value == null ? '' : String(c.cells[k].value), source: 'database', saved_at: c.cells[k].saved_at || '' };
+        const out = {}; for (const k in c.cells) { const v = c.cells[k].value == null ? '' : String(c.cells[k].value); out[k] = { value: v, source: v === '' ? 'new' : 'database', saved_at: c.cells[k].saved_at || '' }; }
         return out;
       },
       saveFlatCycle(cid, map) {

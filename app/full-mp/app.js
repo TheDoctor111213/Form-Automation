@@ -81,11 +81,12 @@ function ovIcons(kk){const keys=Array.isArray(kk)?kk:[kk];const j=keys.join(',')
 /* ---- program-driven sections: a cycle's program picks its form ---------- */
 function cycleProgs(){if(activeCid&&mpdb){const cy=mpdb.listCycles(activePid).find(c=>c.id===activeCid);if(cy&&cy.programs.length)return cy.programs;}return ['rcs'];}
 function hasProg(p){return cycleProgs().indexOf(p)>=0;}
-function visibleSections(){const s=new Set();const pr=cycleProgs();
-  if(pr.indexOf('rcs')>=0)[1,2,3,4,5,6,7,8,9].forEach(n=>s.add(n));
-  if(pr.indexOf('ocaf')>=0)[1,2,3,4,6,7,10].forEach(n=>s.add(n));
-  if(pr.indexOf('uaf')>=0)[1,2,3,4,6,7,9,11].forEach(n=>s.add(n));
-  return [1,2,3,4,5,6,7,8,9,10,11].filter(n=>s.has(n));}
+function visibleSections(){const pr=cycleProgs();const has=p=>pr.indexOf(p)>=0;
+  if(has('rcs'))return [1,2,3,4,5,6,7,8,9];                 // the classic RCS flow
+  if(has('ocaf')&&has('uaf'))return [1,2,3,4,6,10,11,7,9];  // rents -> worksheet -> UA -> Part B -> tenant notice
+  if(has('ocaf'))return [1,2,3,4,6,10,7];
+  return [1,2,3,4,6,11,7,9];                                // UAF-only
+}
 let _secPos={};
 function computeSecPos(){_secPos={};visibleSections().forEach((n,ix)=>_secPos[n]=ix+1);}
 function secRef(n){return 'Section '+(_secPos[n]||n);}
@@ -102,7 +103,7 @@ function safmrConflictOf(i){const sh=numf(get('units.'+i+'.safmr_hud')),sr=numf(
 function safmrReviewedOf(i){return get('units.'+i+'.safmr_reviewed')==='1';}
 function safmrUnresolved(i){return safmrConflictOf(i)&&!safmrReviewedOf(i);}
 function analysis(){let cg=0,pg=0,tot=0,sc=0,sp=0,nd=0,ceil=0,safmrMissing=false,safmrConflict=false,safmrOver=0;
-  UNITS.forEach(i=>{const n=numf(get('units.'+i+'.num_units')),cur=numf(get('units.'+i+'.current')),pro=numf(get('units.'+i+'.proposed')),ua=uaResolvedOf(i);const safmr=safmrResolvedOf(i);
+  UNITS.forEach(i=>{const n=numf(get('units.'+i+'.num_units')),cur=numf(get('units.'+i+'.current')),ua=uaResolvedOf(i);let pro=numf(get('units.'+i+'.proposed'));if(!(pro>0)&&cur>0&&!hasProg('rcs'))pro=cur;const safmr=safmrResolvedOf(i);
     cg+=(cur+ua)*n;pg+=(pro+ua)*n;tot+=n;if(safmr>0){ceil+=safmr*n;if(pro>0&&pro>=safmr)safmrOver++;}else if(n>0)safmrMissing=true;if(safmrConflictOf(i))safmrConflict=true;
     if(cur>0&&pro>0){sc+=cur*n;sp+=pro*n;nd+=n;}});
   const perUnit=nd?(sp-sc)/nd:0;const pct=sc?Math.round((sp-sc)/sc*100):0;
@@ -220,7 +221,7 @@ function selectCell(f){const c=CLR[srcOf(f.k)]||CLR.new;let dd=csDrop(f.k,f.opts
       +(nv?'<div class="uaopt" data-cskey="owner.entity_type" data-csopt="'+esc(nv)+'">'+esc(nv)+'<span class="uasub">Related Affordable</span></div>'
           :'<div class="uaopt srcdim">\u2014<span class="uasub">Related Affordable \u00b7 not available</span></div>');
     dd=dd.replace('<div class="uamenu">','<div class="uamenu">'+navRows);}
-  return `<div class="field"><div class="flabel">${f.label}</div><div class="fbox seldrop" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${dd}${ovIcons(f.k)}</div>${ovNote(f.k)}</div>`;}
+  return `<div class="field"><div class="flabel">${f.label}</div><div class="fbox seldrop" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${dd}</div>${ovNote(f.k)}</div>`;}
 function compAddrCell(keys,box,label){const a=baseSrc(keys);const c=CLR[a]||CLR.new;const ti=k=>partHot(k)?(';'+tintStyle(k)):'';
   return `<div class="field"><div class="flabel">${label}</div><div class="fbox addr" data-box="${box}" style="background:${c[1]};border-left-color:${c[0]}">
      <input type="text" data-k="${keys[0]}" value="${esc(get(keys[0]))}" placeholder="Street" style="flex:2.2${ti(keys[0])}"><span class="adiv"></span>
@@ -252,7 +253,7 @@ function uaBox(i){const src=get('units.'+i+'.ua_source')||defUaSrc(i),exec=get('
   const hasAny=numf(exec)>0||numf(rcs)>0||numf(custom)>0;
   const lab=src==='rcs'?('$<input class="uac-in srcedit" data-srcedit="ua" data-si="'+i+'" data-money="1" value="'+esc(fmtMoney(rcs))+'"><span class="srctag">· RCS report</span>'):(src==='custom'?('$<input class="uac-in" data-money="1" data-k="units.'+i+'.ua_custom" value="'+esc(fmtMoney(custom))+'" placeholder="0">'):('$<input class="uac-in srcedit" data-srcedit="ua" data-si="'+i+'" data-money="1" value="'+esc(fmtMoney(exec))+'"><span class="srctag">· Executed RS</span>'));
   let state,c;if(src==='custom'){state=srcOf('units.'+i+'.ua_custom');c=CLR[state]||CLR.new;}else{state=hasAny?'this-cycle':'new';const overSrc=srcOf('units.'+i+'.ua_source')==='overridden';if(uaUnresolved(i)||overSrc)state='overridden';c=CLR[state];}const boxKeyUA=src==='custom'?('units.'+i+'.ua_custom'):('units.'+i+'.ua_source');
-  const menu='<div class="uamenu">'+srcOptRow('data-uaopt="exec" data-uai="'+i+'"',(exec!==''&&exec!=null)?('$'+fmtMoney(exec)):'','Executed RS')+srcOptRow('data-uaopt="rcs" data-uai="'+i+'"',(rcs!==''&&rcs!=null)?('$'+fmtMoney(rcs)):'','RCS report')+'<div class="uaopt" data-uaopt="custom" data-uai="'+i+'">Custom…</div></div>';
+  const menu='<div class="uamenu">'+srcOptRow('data-uaopt="exec" data-uai="'+i+'"',(exec!==''&&exec!=null)?('$'+fmtMoney(exec)):'','Executed RS')+((hasProg('rcs')||numf(rcs)>0)?srcOptRow('data-uaopt="rcs" data-uai="'+i+'"',(rcs!==''&&rcs!=null)?('$'+fmtMoney(rcs)):'','RCS report'):'')+'<div class="uaopt" data-uaopt="custom" data-uai="'+i+'">Custom…</div></div>';
   return '<div class="rbox uacell" data-box="'+boxKeyUA+'" style="background:'+c[1]+';border-left-color:'+c[0]+'"><div class="uadrop"><div class="uatrigger" tabindex="0"><span class="ualab">'+lab+'</span><span class="cvx">▾</span></div>'+menu+'</div>'+(src==='custom'?ovIcons('units.'+i+'.ua_custom'):ovIcons('units.'+i+'.ua_source'))+'</div>';}
 function uaNoteCell(i){const conf=uaConflict(i),overSrc=srcOf('units.'+i+'.ua_source')==='overridden';if(!conf&&!overSrc)return '';const ex=get('units.'+i+'.ua_exec'),rc=get('units.'+i+'.ua_rcs');
   if(conf&&uaUnresolved(i))return '<div class="ucnote warn">⚠ exec $'+ex+' · RCS $'+rc+' <span class="pick"><button class="urev sv" data-uaok="'+i+'">approve $'+uaResolvedOf(i)+'</button></span></div>';
@@ -277,7 +278,7 @@ function safmrBox(i){const src=get('units.'+i+'.safmr_source')||defSafmrSrc(i),h
   const hasAny=numf(hud)>0||numf(rcs)>0||numf(custom)>0;
   const lab=src==='rcs'?('$<input class="uac-in srcedit" data-srcedit="safmr" data-si="'+i+'" data-money="1" value="'+esc(fmtMoney(rcs))+'"><span class="srctag">· RCS</span>'):(src==='custom'?('$<input class="uac-in" data-money="1" data-k="units.'+i+'.safmr_custom" value="'+esc(fmtMoney(custom))+'" placeholder="0">'):('$<input class="uac-in srcedit" data-srcedit="safmr" data-si="'+i+'" data-money="1" value="'+esc(fmtMoney(hud))+'"><span class="srctag">· HUD</span>'));
   let state,c;if(src==='custom'){state=srcOf('units.'+i+'.safmr_custom');c=CLR[state]||CLR.new;}else{state=hasAny?'this-cycle':'new';const overSrc=srcOf('units.'+i+'.safmr_source')==='overridden';if(safmrUnresolved(i)||overSrc)state='overridden';c=CLR[state];}const boxKeySA=src==='custom'?('units.'+i+'.safmr_custom'):('units.'+i+'.safmr_source');
-  const menu='<div class="uamenu">'+srcOptRow('data-safmropt="hud" data-safmri="'+i+'"',(hud!==''&&hud!=null)?('$'+fmtMoney(hud)):'','HUD API')+srcOptRow('data-safmropt="rcs" data-safmri="'+i+'"',(rcs!==''&&rcs!=null)?('$'+fmtMoney(rcs)):'','RCS report')+'<div class="uaopt" data-safmropt="custom" data-safmri="'+i+'">Custom…</div></div>';
+  const menu='<div class="uamenu">'+srcOptRow('data-safmropt="hud" data-safmri="'+i+'"',(hud!==''&&hud!=null)?('$'+fmtMoney(hud)):'','HUD API')+((hasProg('rcs')||numf(rcs)>0)?srcOptRow('data-safmropt="rcs" data-safmri="'+i+'"',(rcs!==''&&rcs!=null)?('$'+fmtMoney(rcs)):'','RCS report'):'')+'<div class="uaopt" data-safmropt="custom" data-safmri="'+i+'">Custom…</div></div>';
   return '<div class="rbox uacell" data-box="'+boxKeySA+'" style="background:'+c[1]+';border-left-color:'+c[0]+'"><div class="uadrop"><div class="uatrigger" tabindex="0"><span class="ualab">'+lab+'</span><span class="cvx">▾</span></div>'+menu+'</div>'+(src==='custom'?ovIcons('units.'+i+'.safmr_custom'):ovIcons('units.'+i+'.safmr_source'))+'</div>';}
 function safmrNote(i){const res=safmrResolvedOf(i),hud=numf(get('units.'+i+'.safmr_hud')),rcs=numf(get('units.'+i+'.safmr_rcs'));
   if(safmrUnresolved(i))return '<div class="ucnote warn">⚠ HUD $'+hud+' · RCS $'+rcs+' <span class="pick"><button class="urev sv" data-safmrok="'+i+'">approve $'+res+'</button></span></div>';
@@ -307,7 +308,7 @@ function unitCard(i,pos){const trash=UNITS.length>1?`<button class="trash" data-
   const metric=(_c>0&&_p>0)?`<span class="ucmetric" data-metric="${i}" style="color:${_d>=0?'#166534':'#b91c1c'}">${sMoney(_d)} / unit · ${sPct(_pc)}</span>`:`<span class="ucmetric" data-metric="${i}"></span>`;
   const notes=[typeNote(i),numNote(i),uaNoteCell(i),safmrNote(i)].filter(Boolean).join('');
   const sub=((_c>0&&_p>0)||notes)?`<div class="urnotes"><div class="urnmetric">${metric}</div><div class="urnsub">${notes}</div></div>`:'';
-  return `<div class="urow"><div class="ucells">${unitTypeCell(i)}${unitCountCell(i)}${moneyBox('units.'+i+'.current')}${moneyBox('units.'+i+'.proposed')}${uaBox(i)}${safmrBox(i)}<div class="urx">${trash}</div></div>${sub}</div>`;}
+  return `<div class="urow"><div class="ucells">${unitTypeCell(i)}${unitCountCell(i)}${moneyBox('units.'+i+'.current')}${hasProg('rcs')?moneyBox('units.'+i+'.proposed'):''}${uaBox(i)}${safmrBox(i)}<div class="urx">${trash}</div></div>${sub}</div>`;}
 function renderRents(){
   const cards=UNITS.map((i,pos)=>unitCard(i,pos)).join('');
   const nrOn=get('nonrev.enabled')==='1'||NONREV.length>0;
@@ -324,8 +325,8 @@ function renderRents(){
     lh+=`<div class="addrow" id="addNs8">+ Add non-Section 8 unit type</div>`;
   }
   lh+=undoBits('LI');
-  const rgHead='<div class="rgh"><span>Unit type</span><span>Units</span><span>Current rent</span><span>Proposed rent</span><span>Utility allowance</span><span class="safmrhead">150% SAFMR<button class="urev hudbtn" id="pullSafmr" title="Re-pull 150% ceilings from HUD for this property’s ZIP">⤓ HUD</button></span><span></span></div>';
-  return card(6,sectionPill(6),`<div class="reseff">${dateEffCell()}</div>${capNote()}<div class="ucards">${UNITS.length?rgHead:''}${cards}</div><div class="addrow" id="addUnit">+ Add unit type</div>${_undoStack.length?(' <span class="addrow ghostlink" id="undoUnit">↩ Undo delete'+(_undoStack.length>1?(' ('+_undoStack.length+')'):'')+'</span><button class="undocommit" id="undoCommit" title="Keep deletions — dismiss undo">✓</button>'):''}<div class="partd">${lh}</div><div class="partd">${pd}</div>`);}
+  const rgHead=`<div class="rgh"><span>Unit type</span><span>Units</span><span>Current rent</span>${hasProg('rcs')?'<span>Proposed rent</span>':''}<span>Utility allowance</span><span class="safmrhead">150% SAFMR<button class="urev hudbtn" id="pullSafmr" title="Re-pull 150% ceilings from HUD for this property’s ZIP">⤓ HUD</button></span><span></span></div>`;
+  return card(6,sectionPill(6),`<div class="reseff">${dateEffCell()}</div>${capNote()}<div class="ucards${hasProg('rcs')?'':' noprop'}">${UNITS.length?rgHead:''}${cards}</div><div class="addrow" id="addUnit">+ Add unit type</div>${_undoStack.length?(' <span class="addrow ghostlink" id="undoUnit">↩ Undo delete'+(_undoStack.length>1?(' ('+_undoStack.length+')'):'')+'</span><button class="undocommit" id="undoCommit" title="Keep deletions — dismiss undo">✓</button>'):''}<div class="partd">${lh}</div><div class="partd">${pd}</div>`);}
 
 const SAFMR_BR_KEY={'Studio':'efficiency','1BR':'br1','2BR':'br2','3BR':'br3','4BR':'br4'};
 let _hud={key:'',data:null,inflight:null};let _hudTimer=null;
@@ -435,7 +436,7 @@ function ocafCalc(){let e=0;UNITS.forEach(i=>{e+=numf(get('units.'+i+'.num_units
 function ocafFactorCell(){const pub=get('ocaf.factor_pub'),fy=get('ocaf.factor_fy');
   const src=get('ocaf.factor_src')||(pub?'fr':'custom');const custom=get('ocaf.factor_custom');
   const lab=(src==='custom')
-    ?('<input class="uac-in" data-k="ocaf.factor_custom" value="'+esc(custom)+'" placeholder="e.g. 4.9" style="width:64px"><span class="srctag">% · custom</span>')
+    ?('<input class="uac-in" data-k="ocaf.factor_custom" value="'+esc(custom)+'" placeholder="4.9" style="width:78px"><span class="srctag">% · custom</span>')
     :(pub?('<span class="ualab">'+esc(pub)+'%<span class="srctag" style="margin-left:6px">· FY'+esc(fy)+' Federal Register</span></span>'):('<span class="ualab" style="color:#8791a5">— pull or enter the factor</span>'));
   let state,c;if(src==='custom'){state=srcOf('ocaf.factor_custom');c=CLR[state]||CLR.new;}else{state=pub?'this-cycle':'new';c=CLR[state];}
   const boxKey=(src==='custom')?'ocaf.factor_custom':'ocaf.factor_src';
@@ -528,7 +529,7 @@ function renderUaf(){
   const head='<div class="ocpull"><b>Published UAFs</b>'
     +'<button class="urev hudbtn" id="pullUaf" title="Pull this state’s utility allowance factors from HUD USER">⤓ HUD USER</button>'
     +'<span class="sub">'+(fy?('FY'+esc(fy)+(st?' · '+esc(st):'')+(pd?' · file dated '+esc(fmtDateLong(pd)):'')):'one factor per utility per state — pull, or enter them manually')+'</span></div>';
-  const fCells='<div class="uffrow">'+UAF_UTILS.map(x=>'<div class="field"><div class="flabel">'+x[1]+' factor</div>'+numBox('uaf.f_'+x[0],'e.g. 1.039')+'</div>').join('')+'</div>';
+  const fCells='<div class="uffrow">'+UAF_UTILS.map(x=>'<div class="field"><div class="flabel">'+x[1]+' factor</div>'+numBox('uaf.f_'+x[0],'1.039')+'</div>').join('')+'</div>';
   const note='<div class="pbnote">Each unit type’s <b>current UA split by utility</b> comes from the prior UAF sheet or baseline — the rent schedule only carries totals. Only tenant-paid utilities: anything “included in rent” in '+secRef(7)+' stays out. Each utility is factored separately and rounded to whole dollars before summing (HUD FAQ).</div>';
   const rows=UNITS.map(i=>{const br=get('units.'+i+'.br')||'—';const ba=get('units.'+i+'.ba');const n=numf(get('units.'+i+'.num_units'));
     const cells=UAF_UTILS.map(x=>'<div class="field"><div class="flabel">'+x[1]+'</div>'+moneyBox('units.'+i+'.uac_'+x[0])+'</div>').join('');
@@ -576,15 +577,19 @@ function renderCommand(){holdAnchor(_renderCommand);}
 function _renderCommand(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.ceil*100):0,pPro=a.ceil>0?clamp(a.pg/a.ceil*100):0;
   const conf=UNITS.filter(uaConflict).length,unres=UNITS.filter(uaUnresolved).length;
   const nmOk=(get('property.name')||'').trim()!=='',fhaOk=(get('property.fha')||'').trim()!=='',sigOk=(get('sig.name')||'').trim()!=='';
-  const ua=conf===0?['ok','exec & RCS agree']:(unres===0?['ok','UA conflicts resolved per unit type']:['warn',unres+' of '+conf+' unit type'+(conf>1?'s':'')+' need'+(unres===1?'s':'')+' a UA source']);
+  const ua=conf===0?['ok',hasProg('rcs')?'exec & RCS agree':'per executed RS']:(unres===0?['ok','UA conflicts resolved per unit type']:['warn',unres+' of '+conf+' unit type'+(conf>1?'s':'')+' need'+(unres===1?'s':'')+' a UA source']);
+  const liftHtml=(hasProg('rcs')||hasProg('ocaf'))
+    ?`<div class="lift"><b>${hasProg('rcs')?'RCS':'OCAF'} LIFT vs current rent roll</b><div class="liftnums"><span><b class="teal">${sPct(a.pct)}</b><i>increase</i></span><span><b>${sMoney(a.perUnit)}</b><i>per unit</i></span><span><b>${sMoney(a.dMo)}</b><i>/mo</i></span><span><b>${sK(a.dYr)}</b><i>annualized</i></span></div></div>`
+    :(()=>{const U=uafAnalysis();let dMo=0,types=0;UNITS.forEach(i=>{const r=uafRow(i);if(r.curSum>0&&r.newSum>0){types++;dMo+=numf(get('units.'+i+'.num_units'))*(r.newSum-r.curSum);}});
+      return `<div class="lift"><b>UTILITY ALLOWANCE CHANGE</b><div class="liftnums"><span><b class="teal">${types}</b><i>unit type${types===1?'':'s'}</i></span><span><b>${sMoney(dMo)}</b><i>UA /mo across units</i></span><span><b style="color:${U.dec.length?'#b45309':'#166534'}">${U.dec.length}</b><i>decrease${U.dec.length===1?'':'s'}</i></span></div></div>`;})();
   el('cc').innerHTML=`
-   <div class="ccard afford"><div class="cck">AFFORDABILITY PROOF</div><div class="cctitle">${a.ceil>0?('Proposed rents '+(a.pass?'clear':'exceed')+' the 150% SAFMR ceiling'):'Enter or pull a SAFMR to run the 150% test'}</div><div class="ccsub">Monthly gross rent potential (rent + UA)</div>
+   <div class="ccard afford"><div class="cck">AFFORDABILITY PROOF</div><div class="cctitle">${a.ceil>0?((hasProg('rcs')?'Proposed':'Adjusted')+' rents '+(a.pass?'clear':'exceed')+' the 150% SAFMR ceiling'):'Enter or pull a SAFMR to run the 150% test'}</div><div class="ccsub">Monthly gross rent potential (rent + UA)</div>
      <div class="afrow"><div class="afbar">
         <div class="gauge"><div class="seg dark" style="width:${pCur}%"></div><div class="seg light" style="left:${pCur}%;width:${Math.max(0,pPro-pCur)}%"></div><div class="oend"></div></div>
-        <div class="glabels"><div class="gl l"><b style="color:#2f7d57">${money(a.cg)}</b><i>current</i></div><div class="gl c"><b style="color:#47a377">${money(a.pg)}</b><i>proposed</i></div><div class="gl r"><b>${a.ceil>0?money(a.ceil):'—'}</b><i>150% ceiling · HUD SAFMR</i>${a.safmrConflict?`<i class="amber">⚠ RCS differs on ≥1 type</i>`:(a.safmrMissing?`<i class="amber">⚠ SAFMR needed</i>`:'')}</div></div>
+        <div class="glabels"><div class="gl l"><b style="color:#2f7d57">${money(a.cg)}</b><i>current</i></div><div class="gl c"><b style="color:#47a377">${money(a.pg)}</b><i>${hasProg('rcs')?'proposed':'adjusted'}</i></div><div class="gl r"><b>${a.ceil>0?money(a.ceil):'—'}</b><i>150% ceiling · HUD SAFMR</i>${a.safmrConflict?`<i class="amber">⚠ RCS differs on ≥1 type</i>`:(a.safmrMissing?`<i class="amber">⚠ SAFMR needed</i>`:'')}</div></div>
        </div>
        ${a.ceil>0?`<div class="passbox" style="background:${a.pass?'#dcfce7':'#fee2e2'};color:${a.pass?'#166534':'#b91c1c'};border-color:${a.pass?'#86efac':'#fca5a5'}">${a.pass?'✓ PASS':'✗ OVER'}<small>${money(Math.abs(a.headroom))} ${a.pass?'headroom':'over'}</small></div>`:`<div class="passbox" style="background:#f1f4f9;color:#64748b;border-color:#d7deea">SAFMR needed<small>enter or pull from HUD</small></div>`}</div>
-     <div class="lift"><b>${hasProg('rcs')?'RCS':(hasProg('ocaf')?'OCAF':'RENT')} LIFT vs current rent roll</b><div class="liftnums"><span><b class="teal">${sPct(a.pct)}</b><i>increase</i></span><span><b>${sMoney(a.perUnit)}</b><i>per unit</i></span><span><b>${sMoney(a.dMo)}</b><i>/mo</i></span><span><b>${sK(a.dYr)}</b><i>annualized</i></span></div></div>
+     ${liftHtml}
    </div>
    <div class="ccard"><div class="cck">RECORD CHECKS</div><div class="chkgrid">
      ${chk(nmOk?'ok':'warn','Property name',nmOk?esc(get('property.name')):'missing — Section 2')}${chk(fhaOk?'ok':'warn','FHA / Section 8 #',fhaOk?esc(get('property.fha')):'missing — Section 2')}${chk(sigOk?'ok':'warn','Signatory (Part H)',sigOk?(esc(get('sig.name'))+(get('sig.title')?' · '+esc(get('sig.title')):'')):'missing — Section 3')}
@@ -630,7 +635,7 @@ function _renderAttention(){const f=attnFlags();el('attn').style.display=f.lengt
 
 function renderBar(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.ceil*100):0,pPro=a.ceil>0?clamp(a.pg/a.ceil*100):0;const conf=UNITS.filter(uaConflict).length,unres=UNITS.filter(uaUnresolved).length;const uaOk=conf===0||unres===0;
  const bc=(st,l)=>{const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const c=st==='warn'?'#b45309':(st==='info'?'#2563eb':'#166534');return `<span class="bchip"><b style="color:${c}">${ic}</b> ${l}</span>`;};
- el('ccbar').innerHTML=`<div class="bl"><div class="minigauge"><div class="seg dark" style="width:${pCur}%"></div><div class="seg light" style="left:${pCur}%;width:${Math.max(0,pPro-pCur)}%"></div><div class="oend"></div></div><div class="mn"><b style="color:#2f7d57">${money(a.cg)}</b> current · <b style="color:#47a377">${money(a.pg)}</b> proposed · <b>${a.ceil>0?money(a.ceil):'—'}</b> ceiling · <b class="teal">${sPct(a.pct)}</b> RCS boost</div></div><div class="bchks">${bc((get('property.name')||'').trim()?'ok':'warn','Name')}${bc((get('property.fha')||'').trim()?'ok':'warn','FHA')}${bc((get('sig.name')||'').trim()?'ok':'warn','Signatory')}${bc(uaOk?'ok':'warn','UA')}${bc(a.safmrMissing||a.safmrOver?'warn':(a.safmrConflict?'info':'ok'),'SAFMR')}</div><div class="bpass" style="color:${a.ceil>0?(a.pass?'#166534':'#b91c1c'):'#64748b'}">${a.ceil>0?((a.pass?'✓ PASS':'✗ OVER')+' · '+money(Math.abs(a.headroom))):'SAFMR needed'}</div>`;}
+ el('ccbar').innerHTML=`<div class="bl"><div class="minigauge"><div class="seg dark" style="width:${pCur}%"></div><div class="seg light" style="left:${pCur}%;width:${Math.max(0,pPro-pCur)}%"></div><div class="oend"></div></div><div class="mn"><b style="color:#2f7d57">${money(a.cg)}</b> current · <b style="color:#47a377">${money(a.pg)}</b> ${hasProg('rcs')?'proposed':'adjusted'} · <b>${a.ceil>0?money(a.ceil):'—'}</b> ceiling · <b class="teal">${sPct(a.pct)}</b> ${hasProg('rcs')?'RCS boost':(hasProg('ocaf')?'OCAF lift':'rent change')}</div></div><div class="bchks">${bc((get('property.name')||'').trim()?'ok':'warn','Name')}${bc((get('property.fha')||'').trim()?'ok':'warn','FHA')}${bc((get('sig.name')||'').trim()?'ok':'warn','Signatory')}${bc(uaOk?'ok':'warn','UA')}${bc(a.safmrMissing||a.safmrOver?'warn':(a.safmrConflict?'info':'ok'),'SAFMR')}</div><div class="bpass" style="color:${a.ceil>0?(a.pass?'#166534':'#b91c1c'):'#64748b'}">${a.ceil>0?((a.pass?'✓ PASS':'✗ OVER')+' · '+money(Math.abs(a.headroom))):'SAFMR needed'}</div>`;}
 function renderBody(){const _sy=window.scrollY;const _anchorSel=(_refocusSel&&!_mouseFocus)?_refocusSel:(((Date.now()-_lastClickAt)<2000)?_lastClickSel:null);let _anchorTop=null;if(_anchorSel){try{const _ac=document.querySelector(_anchorSel);if(_ac)_anchorTop=_ac.getBoundingClientRect().top;}catch(e){}}computeSecPos();const _SR={1:renderSources,2:()=>renderFieldSection(FIELD_SECTIONS[0]),3:()=>renderFieldSection(FIELD_SECTIONS[1]),4:()=>renderFieldSection(FIELD_SECTIONS[2]),5:()=>renderFieldSection(FIELD_SECTIONS[3]),6:renderRents,7:renderPartB,8:renderChecklist,9:()=>renderFieldSection(FIELD_SECTIONS[4]),10:renderOcaf,11:renderUaf};el('sections').innerHTML=visibleSections().map(n=>_SR[n]()).join('');
   wireBody();renderCommand();renderBar();renderRail();renderAttention();
   if(_refocusSel&&!_mouseFocus){try{const _f=document.querySelector(_refocusSel);if(_f&&_f.focus){_f.focus({preventScroll:true});if(/^(INPUT|TEXTAREA)$/.test(_f.tagName)&&typeof _f.setSelectionRange==='function'){const _L=(_f.value||'').length;try{_f.setSelectionRange(_L,_L);}catch(_e){}}}}catch(e){}}_refocusSel=null;
