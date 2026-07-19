@@ -288,7 +288,226 @@
     return await doc.save({objectsPerTick:Infinity});
   }
 
-  const API={resolve,coverLetter,ownerLetter,tenantNotice,fillChecklist,fillRentSchedule};
+
+  /* ================= OCAF / UAF package documents =================
+     Same principle as the RCS docs: clean, corrected documents of our own
+     that CAs accept — computed from the cycle exactly as the form shows. */
+  const nmv2=v=>parseFloat(String(v||'').replace(/[^0-9.\-]/g,''))||0;
+  const m0=n=>'$'+Math.round(Number(n)||0).toLocaleString('en-US');
+  const m2=n=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const idxOf=(rec,pre)=>[...new Set(Object.keys(rec).map(k=>(k.match(new RegExp('^'+pre+'\\.(\\d+)\\.'))||[])[1]).filter(x=>x!=null))].sort((a,b)=>a-b);
+  const utype2=(br,ba)=>{const b=String(br||'').replace(/(\d+)\s*BR/i,'$1 BR').trim();const a=String(ba||'').replace(/(\d+(?:\.\d+)?)\s*BA/i,'$1 BA').trim();return (b&&a)?(b+' / '+a):(b||a||'—');};
+  const effOf=rec=>{const g=k=>rec[k]!=null?String(rec[k]):'';const de=(g('rent_schedule.date_eff_source')==='custom'?g('rent_schedule.date_eff_custom'):(g('rent_schedule.date_eff_rs')||g('rent_schedule.date_rents_effective')));
+    const s=String(de||'').trim();let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);if(m)return monthY(m[3]+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2));return monthY(s);};
+  const UAF_UTILS_G=[['oil','Oil'],['gas','Natural Gas'],['electric','Electric'],['water','Water / Sewer / Trash']];
+  function ocafCalcRec(rec){
+    const g=k=>rec[k]!=null?String(rec[k]):'';
+    let e=0; const rows=[];
+    idxOf(rec,'units').forEach(i=>{const n=nmv2(g('units.'+i+'.num_units')),c=nmv2(g('units.'+i+'.current'));
+      if(n||c||g('units.'+i+'.br'))rows.push({br:g('units.'+i+'.br'),ba:g('units.'+i+'.ba'),n,c,pro:nmv2(g('units.'+i+'.proposed'))});e+=n*c;});
+    const F=e*12,G=nmv2(g('ocaf.g'));
+    let h=0; if(g('ns8.enabled')==='1')idxOf(rec,'ns8').forEach(i=>{h+=nmv2(g('ns8.'+i+'.num_units'))*nmv2(g('ns8.'+i+'.avg_rent'));});
+    const H=h*12,I=F+G+H,J=I>0?F/I:0;
+    const fl=/floating/i.test(g('ocaf.rate_type')||'Fixed rate');
+    const t12=nmv2(g('ocaf.ds_t12')),f12=nmv2(g('ocaf.ds_f12'));
+    const K=fl?((t12>0&&f12>0)?Math.min(t12,f12):(t12||f12)):nmv2(g('ocaf.ds_annual'));
+    const L=J*K,M=F-L;
+    const src=g('ocaf.factor_src')||(g('ocaf.factor_pub')?'fr':'custom');
+    const pct=src==='custom'?nmv2(g('ocaf.factor_custom')):nmv2(g('ocaf.factor_pub'));
+    const N=pct>0?1+pct/100:0,O=M*N,P=L+O,Q=P;
+    const R=(F>0&&N>0)?Math.round(Q/F*1000)/1000:0;
+    return {rows,e,F,G,H,I,J,K,L,M,pct,N,O,P,Q,R,fl,t12,f12,src,fy:g('ocaf.factor_fy'),pub:g('ocaf.factor_pubdate'),state:g('property.addr_state')};
+  }
+  function uafCalcRec(rec){
+    const g=k=>rec[k]!=null?String(rec[k]):'';
+    const rows=idxOf(rec,'units').map(i=>{
+      const parts=UAF_UTILS_G.map(x=>{const cur=nmv2(g('units.'+i+'.uac_'+x[0]));const f=nmv2(g('uaf.f_'+x[0]));const raw=(cur>0&&f>0)?cur*f:0;return{u:x[0],label:x[1],cur,f,raw,rounded:raw?Math.round(raw):0};});
+      const curSum=parts.reduce((s,p)=>s+p.cur,0),newSum=parts.reduce((s,p)=>s+p.rounded,0);
+      return {i,br:g('units.'+i+'.br'),ba:g('units.'+i+'.ba'),n:nmv2(g('units.'+i+'.num_units')),parts,curSum,newSum};
+    }).filter(r=>r.curSum>0);
+    return {rows,dec:rows.filter(r=>r.newSum>0&&r.newSum<r.curSum),
+      factors:UAF_UTILS_G.map(x=>({u:x[0],label:x[1],f:nmv2(g('uaf.f_'+x[0]))})).filter(x=>x.f>0),
+      fy:g('uaf.factor_fy'),pub:g('uaf.factor_pubdate'),state:g('property.addr_state')};
+  }
+  function simpleTable(st,heads,rows,cw,opts){
+    const rgb=PL().rgb;const o=opts||{};const R=st.R,B=st.B;const rh=o.rh||21,ss=o.size||10;
+    const tw=cw.reduce((a,b)=>a+b,0),x0=(st.W-tw)/2;
+    const navy=rgb(0.118,0.227,0.373),white=rgb(1,1,1),line=rgb(0.72,0.75,0.80);
+    const draw=(vals,hd,y,bold)=>{let x=x0;vals.forEach((v,ci)=>{st.page.drawRectangle({x,y:y-rh,width:cw[ci],height:rh,borderColor:line,borderWidth:0.6,color:hd?navy:undefined});
+      const f=(hd||bold)?B:R,col=hd?white:st.ink,w=f.widthOfTextAtSize(String(v),ss);
+      st.page.drawText(String(v),{x:x+(cw[ci]-w)/2,y:y-rh+(rh-ss)/2+1.5,size:ss,font:f,color:col});x+=cw[ci];});};
+    st.ensure(rh*2); let y=st.y; draw(heads,true,y); y-=rh;
+    rows.forEach(r=>{ if(y-rh<st.bottom){st.page=st.doc.addPage([st.W,st.H]);y=st.H-72;draw(heads,true,y);y-=rh;} draw(r.cells||r,false,y,r.bold);y-=rh;});
+    st.y=y-10;
+  }
+  function wsLine(st,code,label,val,opts){
+    const o=opts||{};const s=10.5,lead=17;st.ensure(lead);
+    const rgb=PL().rgb;const navy=rgb(0.118,0.227,0.373);
+    st.page.drawText('('+code+')',{x:st.M,y:st.y,size:s,font:st.B,color:navy});
+    st.page.drawText(String(label),{x:st.M+30,y:st.y,size:s,font:o.bold?st.B:st.R,color:st.ink});
+    const v=String(val);const f=o.bold?st.B:st.R;const w=f.widthOfTextAtSize(v,s);
+    st.page.drawText(v,{x:st.W-st.M-w,y:st.y,size:s,font:f,color:st.ink});
+    st.y-=lead;
+  }
+  function sigBlock(st,t,label){
+    st.gap(16);
+    st.line(label||'Respectfully submitted,'); st.gap(34);
+    const rgb=PL().rgb;const line=rgb(0.45,0.48,0.53);
+    st.page.drawLine({start:{x:st.M,y:st.y+11},end:{x:st.M+230,y:st.y+11},thickness:0.7,color:line});
+    st.line(t.sig_name||''); st.line(t.sig_title||''); st.gap(4);
+    st.page.drawLine({start:{x:st.M,y:st.y+11},end:{x:st.M+120,y:st.y+11},thickness:0.7,color:line});
+    st.line('Date',{color:st.grey,size:9.5});
+  }
+  async function ocafWorksheet(rec){
+    const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const C=ocafCalcRec(rec);
+    const doc=await PDFDocument.create();
+    const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+    const st=makeLetter(doc,R,B,I); st.doc=doc; st.y=792-64;
+    st.center('OCAF RENT ADJUSTMENT WORKSHEET',{font:B,size:14});
+    st.center('Prepared per form HUD-9625 — Contract Renewals: Option One (Mark-Up-To-Market) / Option Two',{size:9,color:st.grey}); st.gap(10);
+    st.line('Project: '+t.property_name,{font:B}); st.line('Section 8 Contract Number: '+t.section8);
+    st.line('Rents effective: '+effOf(rec));
+    st.line('Published OCAF: '+(C.pct?(C.pct+'%'+(C.fy?' (FY'+C.fy:'')+(C.state?' · '+C.state:'')+(C.fy?')':'')+(C.pub?' — published '+monthY(C.pub):'')):'—')); st.gap(10);
+    st.line('Step 1 · Current annual Section 8 rent potential',{font:B,size:11}); st.gap(2);
+    simpleTable(st,['Unit type','Units','Current rent','Monthly potential'],
+      C.rows.filter(r=>r.n||r.c).map(r=>[utype2(r.br,r.ba),String(r.n||''),m0(r.c),m0(r.n*r.c)]).concat([{cells:['Total (E)','','',m0(C.e)],bold:true}]),[150,60,110,130]);
+    st.line('Step 2 · Debt-service carve-out and OCAF application',{font:B,size:11}); st.gap(4);
+    wsLine(st,'F','Annual expiring Section 8 contract rent potential (E × 12)',m0(C.F));
+    wsLine(st,'G','Annual rent potential, non-expiring Section 8 contracts',m0(C.G));
+    wsLine(st,'H','Annual rent potential, non-Section 8 units',m0(C.H));
+    wsLine(st,'I','Total annual project rent potential (F + G + H)',m0(C.I));
+    wsLine(st,'J','Expiring Section 8 share of the project (F ÷ I)',C.I>0?C.J.toFixed(4):'—');
+    wsLine(st,'K','Total annual project debt service'+(C.fl?' (lesser of trailing-12 / forward-12)':' (P&I + MIP)'),m2(C.K));
+    wsLine(st,'L','Section 8 share of debt service (J × K)',m2(C.L));
+    wsLine(st,'M','Section 8 potential less debt-service share (F - L)',m2(C.M));
+    wsLine(st,'N','Published OCAF adjustment factor','× '+(C.N>0?C.N.toFixed(3):'—'));
+    wsLine(st,'O','Operating portion adjusted by OCAF (M × N)',m2(C.O));
+    wsLine(st,'P','Adjusted contract rent potential (L + O)',m2(C.P));
+    wsLine(st,'Q','Adjusted potential carried forward (line Q takes line P; RCS: N/A)',m2(C.Q),{bold:true});
+    wsLine(st,'R','Contract rent increase factor (Q ÷ F, 3 decimals)',C.R>0?C.R.toFixed(3):'—',{bold:true});
+    st.gap(8);
+    st.line('Step 3 · Adjusted contract rents (current × R, rounded to whole dollars)',{font:B,size:11}); st.gap(2);
+    simpleTable(st,['Unit type','Units','Current rent','Adjusted rent'],
+      C.rows.filter(r=>r.c>0).map(r=>[utype2(r.br,r.ba),String(r.n||''),m0(r.c),m0(r.pro>0?r.pro:Math.round(r.c*C.R))]),[150,60,110,110]);
+    st.para('Owner certification: I certify that the debt service and non-Section 8 rent potential figures used above are true and accurate, and that the adjusted contract rents were computed by applying the published Operating Cost Adjustment Factor in accordance with HUD requirements. WARNING: Anyone who knowingly submits a false claim or makes a false statement is subject to criminal and/or civil penalties (18 U.S.C. §§ 287, 1001; 31 U.S.C. § 3729).',{size:9,color:st.grey});
+    sigBlock(st,t);
+    return await doc.save({objectsPerTick:Infinity});
+  }
+  async function exhibitA(rec){
+    const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const C=ocafCalcRec(rec);
+    const doc=await PDFDocument.create();
+    const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+    const st=makeLetter(doc,R,B,I); st.doc=doc; st.y=792-72;
+    st.center('EXHIBIT A',{font:B,size:15}); st.gap(2);
+    st.center('Identification of Contract Units by Bedroom Size and Applicable Contract Rents',{size:10.5,color:st.grey}); st.gap(14);
+    st.line('Project: '+t.property_name,{font:B}); st.line('Section 8 Contract Number: '+t.section8);
+    st.line('Contract rents effective: '+effOf(rec),{font:B}); st.gap(12);
+    simpleTable(st,['Unit type','Contract units','Current contract rent','Adjusted contract rent'],
+      C.rows.filter(r=>r.c>0||r.n).map(r=>[utype2(r.br,r.ba),String(r.n||''),m0(r.c),m0(r.pro>0?r.pro:(C.R>0?Math.round(r.c*C.R):r.c))]),[130,90,130,140]);
+    st.gap(6);
+    st.para('The adjusted contract rents shown above reflect the application of the published FY'+(C.fy||'—')+' Operating Cost Adjustment Factor'+(C.state?' for '+C.state:'')+' ('+(C.pct?C.pct+'%':'—')+'), applied per the accompanying OCAF Rent Adjustment Worksheet.',{size:10});
+    sigBlock(st,t);
+    return await doc.save({objectsPerTick:Infinity});
+  }
+  async function uafCert(rec){
+    const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const U=uafCalcRec(rec);
+    const doc=await PDFDocument.create();
+    const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+    const st=makeLetter(doc,R,B,I); st.doc=doc; st.y=792-64;
+    st.center('FACTOR-BASED UTILITY ALLOWANCE ANALYSIS',{font:B,size:13.5}); st.gap(1);
+    st.center('Owner Certification and Per-Utility Breakdown',{size:10.5,color:st.grey}); st.gap(12);
+    st.line('Project: '+t.property_name,{font:B}); st.line('Section 8 Contract Number: '+t.section8);
+    st.line('Utility allowances effective: '+effOf(rec));
+    st.line('Applied factors: FY'+(U.fy||'—')+' HUD Utility Allowance Factors'+(U.state?' — '+U.state:'')+(U.pub?' (file dated '+monthY(U.pub)+')':'')); st.gap(4);
+    if(U.factors.length){ st.line(U.factors.map(f=>f.label+' × '+f.f).join('   ·   '),{size:9.5,color:st.grey}); st.gap(8); }
+    st.line('Per-utility computation — each utility factored separately, rounded to whole dollars, then summed:',{size:10}); st.gap(4);
+    const rows=[];
+    U.rows.forEach(r=>{ r.parts.filter(p=>p.cur>0).forEach((p,pi)=>rows.push([pi===0?utype2(r.br,r.ba):'',p.label,m0(p.cur),p.f>0?('× '+p.f):'—',p.raw?m2(p.raw):'—',p.rounded?m0(p.rounded):'—']));
+      rows.push({cells:['','Total — '+utype2(r.br,r.ba),m0(r.curSum),'','',m0(r.newSum)],bold:true}); });
+    simpleTable(st,['Unit type','Utility','Current UA','Factor','Result','Rounded'],rows,[92,128,76,68,76,68],{size:9.5,rh:19});
+    const anyDec=U.dec.length>0;
+    st.para('The owner elects to accept the factor-based adjustment of utility allowances computed above, in lieu of submitting a utility analysis.',{size:10.5});
+    if(anyDec) st.para('The adjustment decreases the utility allowance for '+U.dec.map(r=>utype2(r.br,r.ba)).join(', ')+'. The required 30-day notice to tenants under 24 CFR § 245.420 has been issued, and the owner’s certification of compliance with the tenant comment procedures accompanies this submission.',{size:10.5});
+    st.para('Owner certification: I certify that the current utility allowances and their per-utility components shown above are true and accurate. WARNING: Anyone who knowingly submits a false claim or makes a false statement is subject to criminal and/or civil penalties (18 U.S.C. §§ 287, 1001; 31 U.S.C. § 3729).',{size:9,color:st.grey});
+    sigBlock(st,t);
+    return await doc.save({objectsPerTick:Infinity});
+  }
+  async function dsEvidence(rec){
+    const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const C=ocafCalcRec(rec);
+    const doc=await PDFDocument.create();
+    const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+    const st=makeLetter(doc,R,B,I); st.doc=doc; st.y=792-72;
+    st.center('ANNUAL DEBT SERVICE DETERMINATION — FLOATING RATE',{font:B,size:13}); st.gap(2);
+    st.center('Trailing-12 vs. forward-12 comparison, anchored to the rent-effective date',{size:10,color:st.grey}); st.gap(14);
+    st.line('Project: '+t.property_name,{font:B}); st.line('Section 8 Contract Number: '+t.section8);
+    st.line('Rents effective: '+effOf(rec)); st.gap(10);
+    simpleTable(st,['Measure','Annual debt service'],[
+      ['Trailing 12 months (actual)',C.t12?m2(C.t12):'—'],
+      ['Forward 12 months (SOFR forward curve)',C.f12?m2(C.f12):'—'],
+      {cells:['Used on worksheet line (K) — the lesser',m2(C.K)],bold:true}],[280,170]);
+    st.gap(4);
+    st.para('The project’s mortgage carries a floating interest rate. Annual debt service for OCAF worksheet line (K) is determined as the lesser of (a) the trailing twelve months of actual debt service and (b) the forward twelve months projected from the SOFR forward curve (source: Chatham Financial), both anchored to the contract rent effective date shown above. Supporting rate-curve and amortization detail is retained and available on request.',{size:10});
+    sigBlock(st,t,'Prepared and certified by,');
+    return await doc.save({objectsPerTick:Infinity});
+  }
+  async function uaTenantNotice(rec, letterhead, logoBytes){
+    const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec); const U=uafCalcRec(rec); const nm=t.tenant_alias||t.property_name;
+    const baseDrop=(letterhead&&letterhead.drop)?letterhead.drop:((letterhead&&letterhead.pdf)?180:150);
+    const measured=!!(letterhead&&letterhead.drop);
+    const LEVELS=[{ga:1,lead:1,sig:34,dd:0},{ga:0.8,lead:1,sig:24,dd:0},{ga:0.6,lead:1,sig:18,dd:0},{ga:0.45,lead:0.97,sig:14,dd:0},{ga:0.45,lead:0.95,sig:12,dd:10},{ga:0.4,lead:0.93,sig:10,dd:20}];
+    let out=null;
+    for(const L of LEVELS){
+      const doc=await PDFDocument.create();
+      const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+      const st=makeLetter(doc,R,B,I); st.doc=doc; st.gaScale=L.ga; st.leadScale=L.lead; st.y=792-58; const drop=Math.max(96,baseDrop-(measured?0:L.dd));
+      let placed=false;
+      const lh=letterhead&&(letterhead.pdf||letterhead.png)?letterhead:(letterhead?{png:letterhead}:null);
+      if(lh&&lh.pdf){ try{ const srcDoc=await PDFDocument.load(lh.pdf,{parseSpeed:Infinity}); const [lp]=await doc.embedPdf(srcDoc); st.page.drawPage(lp,{x:0,y:0,width:612,height:792}); st.y=792-drop; placed=true; }catch(e){} }
+      else if(lh&&lh.png){ try{ const img=await doc.embedPng(lh.png);
+        if(img.height>=img.width){ st.page.drawImage(img,{x:0,y:0,width:612,height:792}); st.y=792-drop; placed=true; }
+        else { const ar=img.width/img.height; let h=110,w=h*ar; const maxW=612-2*72; if(w>maxW){w=maxW;h=w/ar;}
+          st.page.drawImage(img,{x:(612-w)/2,y:792-42-h,width:w,height:h}); st.y=792-42-h-24; placed=true; } }catch(e){} }
+      if(!placed){ if(logoBytes){ try{ const png=await doc.embedPng(logoBytes); const w=132,h=w/(png.width/png.height); st.page.drawImage(png,{x:(612-w)/2,y:st.y-h,width:w,height:h}); st.y-=h+14; }catch(e){} }
+        st.center(nm,{font:B,size:14}); const a=[t.mgmt_addr,[t.mgmt_city,t.mgmt_state].filter(Boolean).join(', ')+' '+t.mgmt_zip].filter(x=>x&&x.trim()).join(' · '); if(a.trim())st.center(a,{size:9.5,color:st.grey}); st.gap(16); }
+      st.line('Date of Notice: '+t.notice_date); st.gap(8*L.ga);
+      st.para('Notice to Residents of Intention to submit a request to '+t.ca_company+' for approval of a decrease in utility allowances (24 CFR § 245.420).');
+      st.rich([
+        {text:'Take notice that on '+t.notice_date+' we plan to submit a request for approval of a decrease in utility allowances for '+nm+' to '+t.ca_company+'. The proposed change results from the annual factor-based utility allowance adjustment, applying HUD’s published FY'+(U.fy||'')+' Utility Allowance Factors to each utility.'},
+        {text:'It is important to note that as long as you continue to be eligible under the applicable HUD guidelines for Section 8, your Total Tenant Payment will generally continue to be 30% of your adjusted income.',font:B}]);
+      st.para('The present and proposed utility allowances are:',{gapAfter:7});
+      simpleTable(st,['Unit type','Present allowance','Proposed allowance'],U.rows.map(r=>[utype2(r.br,r.ba),m0(r.curSum),m0(r.newSum)]),[120,140,140],{rh:20,size:10});
+      st.gap(6*L.ga);
+      st.para('A copy of the materials that we are submitting to '+t.ca_company+' in support of our request will be available during normal business hours at the Management Office, '+t.mgmt_addr+', '+t.mgmt_city+', '+t.mgmt_state+' '+t.mgmt_zip+', for a period of 30 days from the date of service of this notice for inspection and copying by tenants and, if tenants wish, by legal or other representatives acting for them solely or as a group.');
+      st.para('During a period of 30 days from the date of service, tenants of '+nm+' may submit written comments on the proposed decrease to us at the Office, '+t.mgmt_addr+', '+t.mgmt_city+', '+t.mgmt_state+' '+t.mgmt_zip+'. Tenant representatives may assist tenants in preparing those comments. The comments will be transmitted to '+t.ca_company+', along with our evaluation of them and our request for the adjustment.');
+      st.para(t.ca_company+' will approve, adjust, or disapprove the proposed change upon reviewing the request and comments. When '+t.ca_company+' advises us in writing of its decision, you will be notified.',{gapAfter:L.sig});
+      st.line(t.sender_name); st.line(t.sender_title||'Community Manager');
+      out=doc;
+      if(doc.getPageCount()===1) break;
+    }
+    return await out.save({objectsPerTick:Infinity});
+  }
+  async function tenantCommentCert(rec){
+    const { PDFDocument, StandardFonts } = PL(); const t=resolve(rec);
+    const doc=await PDFDocument.create();
+    const R=await doc.embedFont(StandardFonts.TimesRoman),B=await doc.embedFont(StandardFonts.TimesRomanBold),I=await doc.embedFont(StandardFonts.TimesRomanItalic);
+    const st=makeLetter(doc,R,B,I); st.doc=doc; st.y=792-58;
+    st.center((t.entity||'[Ownership Entity Name]').toUpperCase(),{font:B,size:12});
+    st.center('30 Hudson Yards, 72nd Floor',{size:10}); st.center('New York, NY 10001',{size:10}); st.gap(16);
+    st.line(t.date); st.gap(12);
+    [t.ca_name,t.ca_position,t.ca_company,t.ca_address,t.ca_csz].filter(Boolean).forEach(l=>st.line(l)); st.gap(12);
+    const tab=72+34; st.line('Re:',{stay:true}); st.line('Certification of Compliance with Tenant Comment Procedures',{x:tab});
+    st.line(t.property_name+' (the “Project”)',{x:tab}); st.line('Section 8 Number: '+t.section8,{x:tab}); st.gap(12);
+    st.line('Dear '+t.ca_salutation+',',{}); st.gap(8);
+    st.para('In connection with the proposed adjustment of utility allowances for the Project, the undersigned owner certifies that it has complied with the tenant notification and comment procedures required by 24 CFR Part 245, Subpart B, including § 245.420:');
+    st.numItem('1.','The required notice of the proposed decrease in utility allowances was served to the tenants of the Project on '+t.notice_date+', in the manner required by 24 CFR § 245.15.');
+    st.numItem('2.','The materials submitted in support of the request were made available at the management office for inspection and copying by tenants and their representatives for a period of 30 days from the date of service of the notice.');
+    st.numItem('3.','All tenant comments received during the comment period, if any, were considered and are transmitted with this submission together with the owner’s evaluation of them.');
+    st.para('I, the undersigned, certify under penalty of perjury that the information provided above is true and correct. WARNING: Anyone who knowingly submits a false claim or makes a false statement is subject to criminal and/or civil penalties (18 U.S.C. §§ 287, 1001, 1010, 1012; 31 U.S.C. § 3729, 3802).',{size:9.5,color:st.grey});
+    sigBlock(st,t);
+    return await doc.save({objectsPerTick:Infinity});
+  }
+
+  const API={resolve,coverLetter,ownerLetter,tenantNotice,fillChecklist,fillRentSchedule,ocafWorksheet,exhibitA,uafCert,dsEvidence,uaTenantNotice,tenantCommentCert,ocafCalcRec,uafCalcRec};
   if(typeof module!=='undefined') module.exports=API;
   if(typeof window!=='undefined') window.RCSGen=API;
 })();

@@ -1102,7 +1102,7 @@ async function genRentAnalysis(){
   }catch(e){setStatus('Excel generation failed: '+((e&&e.message)||e));}
 }
 async function genPackage(){
-  if(!hasProg('rcs')){dialogConfirm('Generation for OCAF/UAF packages is coming','The worksheet and UA calculations are live \u2014 their documents (9625 worksheet, corrected letter, revised Exhibit A, UAF certification, revised rent schedule) are the next build step. \u201cUpdate database\u201d keeps everything saved on this cycle meanwhile.','OK',false,function(){});return;}
+  if(!hasProg('rcs')){await genOcafUafPackage();return;}
   if(!(window.RCSGen&&window.PDFLib)){setStatus('Generator still loading - try again in a moment.');return;}
   if(numf(get('units.'+UNITS[0]+'.num_units'))<=0){setStatus('Cannot generate the package with zero units — the first unit type needs a unit count.');return;}
   let hasLh=false;try{const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;hasLh=!!(L&&L.data);}catch(e){}
@@ -1233,6 +1233,72 @@ async function measurePdfLetterheadDrop(bytes){ try{
   if(best==null) return null;
   return Math.min(360,Math.max(110,Math.round(((ph-best)/ph)*792)+36));
 }catch(e){ return null; } }
+async function genOcafUafPackage(){
+  if(!(window.RCSGen&&window.PDFLib)){setStatus('Generator still loading - try again in a moment.');return;}
+  const C=ocafCalc(),A=uafAnalysis();
+  if(hasProg('ocaf')&&!(C.R>0)){setStatus('The OCAF worksheet is incomplete — enter the factor and debt service in '+secRef(10)+' before generating.');return;}
+  if(hasProg('uaf')&&!A.any){setStatus('Enter the current UA components and factors in '+secRef(11)+' before generating.');return;}
+  if(!UNITS.some(i=>numf(get('units.'+i+'.num_units'))>0)){setStatus('Cannot generate with zero units — enter the unit mix in '+secRef(6)+'.');return;}
+  const needsNotice=hasProg('uaf')&&A.dec.length>0;
+  let hasLh=false;try{const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;hasLh=!!(L&&L.data);}catch(e){}
+  if(needsNotice&&!hasLh){const alias=get('tenant.property_alias')||get('property.name')||'the property name';
+    dialogConfirm('No letterhead uploaded','A UA decrease was detected, so the package includes the 30-day tenant notice — it will use a generated header instead: the Related logo, “'+esc(alias)+'” and the management address. You can upload the real letterhead on the property page.','Generate anyway',false,()=>{__genOcafUafRun();});return;}
+  await __genOcafUafRun();
+}
+async function __genOcafUafRun(){
+  const T=window.RCSTemplates||{};
+  try{ setStatus('Generating package...'); const logo=b64ToBytes(LOGO_B64);
+    const C=ocafCalc(),A=uafAnalysis();
+    const rec=formRec();
+    // the revised RS carries this cycle's rents: OCAF derives them from R when
+    // "Apply as proposed rents" wasn't pressed; a UAF-only cycle keeps current rents
+    UNITS.forEach(i=>{const cur=numf(get('units.'+i+'.current'));if(cur>0&&!(numf(get('units.'+i+'.proposed'))>0))rec['units.'+i+'.proposed']=String((hasProg('ocaf')&&C.R>0)?Math.round(cur*C.R):cur);});
+    let lh=null; try{ const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;
+      if(L&&L.data){const by=dataUrlToBytes(L.data);if(by)lh=(String(L.data).indexOf('data:application/pdf')===0)?{pdf:by}:{png:by};}
+      if(lh&&lh.png){const dr=await measureLetterheadDrop(L.data);if(dr)lh.drop=dr;}
+      if(lh&&lh.pdf){const dr=await measurePdfLetterheadDrop(lh.pdf);if(dr)lh.drop=dr;} }catch(e){}
+    const N=get('property.name')||'Property';
+    const tag=cycleProgs().filter(p=>p!=='rcs').map(x=>PROG_NAMES[x]||x).join(' + ')||'OCAF';
+    const docs=[]; let dn=0; const pre=()=>{dn++;return ('0'+dn).slice(-2)+'. ';};
+    if(hasProg('ocaf')){
+      docs.push({label:'OCAF worksheet (per HUD-9625)',file:pre()+N+' - OCAF Worksheet',bytes:await window.RCSGen.ocafWorksheet(rec)});
+      docs.push({label:'Revised Exhibit A',file:pre()+N+' - Revised Exhibit A',bytes:await window.RCSGen.exhibitA(rec)});
+      if(/floating/i.test(get('ocaf.rate_type')||''))docs.push({label:'Debt-service determination (T-12 / F-12)',file:pre()+N+' - Debt Service Determination',bytes:await window.RCSGen.dsEvidence(rec)});
+    }
+    if(hasProg('uaf'))docs.push({label:'UAF certification / breakdown',file:pre()+N+' - UAF Certification',bytes:await window.RCSGen.uafCert(rec)});
+    if(T.rentSchedule)docs.push({label:'Revised rent schedule'+(hasProg('ocaf')&&hasProg('uaf')?' (merged OCAF + UAF)':''),file:pre()+N+' - Revised Rent Schedule',bytes:await window.RCSGen.fillRentSchedule(b64ToBytes(T.rentSchedule),rec)});
+    if(hasProg('uaf')&&A.dec.length){
+      docs.push({label:'30-day tenant notice (UA decrease)',file:pre()+N+' - UA Decrease Tenant Notice',bytes:await window.RCSGen.uaTenantNotice(rec,lh,logo)});
+      docs.push({label:'Tenant-comment certification',file:pre()+N+' - Tenant Comment Certification',bytes:await window.RCSGen.tenantCommentCert(rec)});
+    }
+    if(_rcsUpload)docs.push({label:'CA package (uploaded)',file:pre()+N+' - CA Package (as received)',bytes:_rcsUpload.bytes});
+    const combined=await combinePdfs(docs.map(d=>d.bytes));
+    const warns=[];
+    if(hasProg('ocaf')&&!_rcsUpload)warns.push('The CA’s auto-OCAF package isn’t uploaded — add it in '+secRef(1)+' for the file.');
+    if(needsDerivedRents(C))warns.push('Proposed rents were derived from the worksheet (×'+C.R.toFixed(3)+') — use “Apply as proposed rents” + “Update database” to save them.');
+    if(hasProg('uaf')&&A.mismatch.length)warns.push(A.mismatch.length+' unit type'+(A.mismatch.length>1?'s':'')+': UA components don’t total the current UA.');
+    showOcafUafModal(N,tag,docs,combined,warns);
+    try{ if(activeCid&&mpdb)await mpdb.setCycleGenerated(activeCid,docs.map(d=>d.label)); }catch(e){}
+    setStatus('Package generated - '+docs.length+' documents.');
+  }catch(e){ setStatus('Generation failed: '+((e&&e.message)||e)); }
+}
+function needsDerivedRents(C){return hasProg('ocaf')&&C.R>0&&UNITS.some(i=>numf(get('units.'+i+'.current'))>0&&!(numf(get('units.'+i+'.proposed'))>0));}
+function showOcafUafModal(nm,tag,docs,combined,warns){
+  const rows=docs.map((d,i)=>'<button class="btn sm" data-dldoc="'+i+'" style="justify-content:flex-start">'+esc(d.label)+'</button>').join('');
+  const w=(warns||[]).map(m=>'<div class="sub" style="color:#b45309;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(m)+'">⚠ '+esc(m)+'</div>').join('');
+  modal('<div class="dlg-t">Package generated</div><div class="dlg-b">'+esc(nm)+' — '+esc(tag)+' package, '+docs.length+' documents. Download the combined file, or any individual document.</div><div style="display:flex;flex-direction:column;gap:7px;margin-top:14px"><button class="btn p" id="dlCombined">Combined package (PDF)</button>'+rows+w+'<button class="btn p" id="dlFolder" style="margin-top:11px;display:inline-flex;align-items:center;justify-content:center;gap:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Download the '+esc(tag)+' Package folder</button></div><div class="dlg-row"><span class="dlg-sp"></span><button class="btn" id="dlgCancel">Close</button></div>');
+  el('dlgCancel').onclick=closeModal;
+  const cbn=el('dlCombined');if(cbn)cbn.onclick=()=>dlPdf(combined,nm+' - '+tag+' Package.pdf');
+  const fb=el('dlFolder');if(fb)fb.onclick=()=>{
+    if(!(window.RCSXlsx&&window.RCSXlsx.makeZip)){setStatus('Packager still loading — try again in a moment.');return;}
+    try{ const folder=tag+' Package';
+      const files=[{name:folder+'/'+nm+' - '+tag+' Package.pdf',data:combined}];
+      docs.forEach(d=>files.push({name:folder+'/'+d.file+'.pdf',data:d.bytes}));
+      dlFile(window.RCSXlsx.makeZip(files),nm+' - '+tag+' Package.zip','application/zip');
+      setStatus(tag+' Package folder downloaded.');
+    }catch(e){setStatus('Folder download failed: '+((e&&e.message)||e));}};
+  document.querySelectorAll('[data-dldoc]').forEach(b=>b.onclick=()=>{const d=docs[+b.getAttribute('data-dldoc')];dlPdf(d.bytes,d.file+'.pdf');});
+}
 async function __genPackageRun(){
   const T=window.RCSTemplates||{};
   try{ setStatus('Generating package...'); const rec=formRec(); const logo=b64ToBytes(LOGO_B64);
@@ -1250,6 +1316,7 @@ async function __genPackageRun(){
     const combined=await combinePdfs(docs.map(d=>d.bytes));
     let _lhOk=false;try{const L2=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;_lhOk=!!(L2&&L2.data);}catch(e){}
     showPackageModal(get('property.name')||'Property',docs,combined,!_rcsUpload,!_lhOk,rsCapacity().msgs);
+    try{ if(activeCid&&mpdb)await mpdb.setCycleGenerated(activeCid,docs.map(d=>d.label)); }catch(e){}
     setStatus('Package generated - '+docs.length+' documents.'+(_rcsUpload?'':' The RCS report (document 04) is missing \u2014 upload it in Section 1 to include it.'));
   }catch(e){ setStatus('Generation failed: '+((e&&e.message)||e)); }
 }
