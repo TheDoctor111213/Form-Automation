@@ -19,21 +19,22 @@ function makeStore(adapter, FIELDS) {
     editForm(form,key,v){ if(!form[key]) form[key]=blank(); const cur=form[key], onFile=cur.db_value;
       if(onFile!=null && onFile!==''){ if(v===onFile) form[key]={...cur,value:v,source:'database',prior_value:null,prior_source:null};
         else form[key]={...cur,value:v,source:'overridden',prior_value:onFile,prior_source:'database'}; }
-      else form[key]={...cur,value:v,source:(onFile===''&&v!==''?'overridden':'new'),prior_value:(onFile===''?'':null),prior_source:(onFile===''?'database':null)}; return form; },
+      else form[key]={...cur,value:v,source:'new',prior_value:null,prior_source:null}; return form; }, // entering into a blank field is new data, never an override
     revertForm(form,key){ const cur=form[key]; if(!cur||cur.source!=='overridden') return false;
-      form[key]={...cur,value:cur.prior_value,source:cur.prior_source||'database',prior_value:null,prior_source:null}; return true; },
-    async saveField(form,key){ const db=await adapter.getDb(); const v=form[key].value; db[key]={value:(v==null?'':v),source:'database',saved_at:today()}; await adapter.saveDb(db); form[key]={value:db[key].value,source:'database',saved_at:db[key].saved_at,prior_value:null,prior_source:null,db_value:db[key].value}; return form; },
+      const v=cur.prior_value; // reverting to a saved blank shows as empty/new, not "on file"
+      form[key]={...cur,value:v,source:(v==null||v==='')?'new':(cur.prior_source||'database'),prior_value:null,prior_source:null}; return true; },
+    async saveField(form,key){ const db=await adapter.getDb(); const v=form[key].value; db[key]={value:(v==null?'':v),source:'database',saved_at:today()}; await adapter.saveDb(db); form[key]={value:db[key].value,source:db[key].value===''?'new':'database',saved_at:db[key].saved_at,prior_value:null,prior_source:null,db_value:db[key].value}; return form; },
     /* Batch form of saveField: one adapter round-trip (=> one backend push)
        for a group of keys saved together (contact fills, address groups). */
     async saveFields(form,keys){ const db=await adapter.getDb();
       for(const key of keys){ const v=form[key].value; db[key]={value:(v==null?'':v),source:'database',saved_at:today()}; }
       await adapter.saveDb(db);
-      for(const key of keys) form[key]={value:db[key].value,source:'database',saved_at:db[key].saved_at,prior_value:null,prior_source:null,db_value:db[key].value};
+      for(const key of keys) form[key]={value:db[key].value,source:db[key].value===''?'new':'database',saved_at:db[key].saved_at,prior_value:null,prior_source:null,db_value:db[key].value};
       return form; },
     async saveToDb(form){ const db=await adapter.getDb();
       for(const key of Object.keys(form)){ const v=form[key].value; db[key]={value:(v==null?'':v),source:'database',saved_at:today()}; }
       await adapter.saveDb(db);
-      for(const key of Object.keys(form)) form[key]={value:db[key].value,source:'database',saved_at:db[key].saved_at,prior_value:null,prior_source:null,db_value:db[key].value};
+      for(const key of Object.keys(form)) form[key]={value:db[key].value,source:db[key].value===''?'new':'database',saved_at:db[key].saved_at,prior_value:null,prior_source:null,db_value:db[key].value};
       return form; },
   };
 }

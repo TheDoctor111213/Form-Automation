@@ -312,14 +312,14 @@ function unitCard(i,pos){const trash=UNITS.length>1?`<button class="trash" data-
 function renderRents(){
   const cards=UNITS.map((i,pos)=>unitCard(i,pos)).join('');
   const nrOn=get('nonrev.enabled')==='1'||NONREV.length>0;
-  let pd=`<div class="pdhead"><label class="ns8flag"><input type="checkbox" id="nonrevToggle"${nrOn?' checked':''}><span>This property has non-revenue units (Part D)</span></label>${nrOn?' <span class="sub">manager’s unit etc. — excluded from rent totals</span>':''}</div>`;
+  let pd=`<div class="pdhead"><label class="ns8flag"><input type="checkbox" id="nonrevToggle"${nrOn?' checked':''}><span>This property has non-revenue units (Part D)</span></label>${nrOn?' <span class="sub">manager’s unit, model, etc. — excluded from rent totals</span>':''}</div>`;
   if(nrOn){
     if(NONREV.length)pd+=`<div class="rgh"><span style="grid-column:1">Unit type</span><span style="grid-column:2">Units</span><span style="grid-column:3">Contract rent</span><span style="grid-column:4/6">Use</span></div>`+NONREV.map(i=>`<div class="pdrow"><div style="grid-column:1">${brbaBox('nonrev.'+i+'.br','nonrev.'+i+'.ba')}</div><div style="grid-column:2">${numBox('nonrev.'+i+'.num_units','')}</div><div style="grid-column:3">${moneyBox('nonrev.'+i+'.rent')}</div><div style="grid-column:4/6">${numBox('nonrev.'+i+'.use',"e.g. Manager’s unit")}</div><div class="urx" style="grid-column:7"><button class="trash" data-delnonrev="${i}" title="Delete">✕</button></div></div>`).join('');
     pd+=`<div class="addrow" id="addNonrev">+ Add non-revenue unit</div>`;
   }
   pd+=undoBits('NR');
   const lhOn=get('ns8.enabled')==='1';
-  let lh=`<div class="pdhead"><label class="ns8flag"><input type="checkbox" id="ns8Toggle"${lhOn?' checked':''}><span>This property has non-Section 8 revenue producing units</span></label>${lhOn?' <span class="sub">unit type + average rent, per the rent schedule</span>':''}</div>`;
+  let lh=`<div class="pdhead"><label class="ns8flag"><input type="checkbox" id="ns8Toggle"${lhOn?' checked':''}><span>This property has non-Section 8 revenue producing units</span></label>${lhOn?' <span class="sub">entered as unit type and average rent, as shown on the rent schedule</span>':''}</div>`;
   if(lhOn){
     if(NS8.length)lh+=`<div class="rgh"><span style="grid-column:1">Unit type</span><span style="grid-column:2">Units</span><span style="grid-column:3">Average unit rent</span></div>`+NS8.map(i=>`<div class="pdrow"><div style="grid-column:1">${brbaBox('ns8.'+i+'.br','ns8.'+i+'.ba')}</div><div style="grid-column:2">${numBox('ns8.'+i+'.num_units','')}</div><div style="grid-column:3">${moneyBox('ns8.'+i+'.avg_rent')}</div><div class="urx" style="grid-column:7"><button class="trash" data-delns8="${i}" title="Delete">✕</button></div></div>`).join('');
     lh+=`<div class="addrow" id="addNs8">+ Add non-Section 8 unit type</div>`;
@@ -382,7 +382,7 @@ function writein(id,hasFuel){const val=get('partb.writein.'+id);const on=get('pa
   const attr=hasFuel?` data-util="1"`:` data-wion="partb.writein.${id}.on"`;
   return `<span class="cb wi ${state}${hasFuel?' util':''}"><span class="box wibox" data-wibox="partb.writein.${id}" style="${boxStyle('partb.writein.'+id+'.on')}">${on?'✓':''}</span><input type="text" class="witext" data-k="partb.writein.${id}"${attr} placeholder="write-in…" value="${esc(val)}">${f}${ovIcons(ks)}</span>`;}
 function renderPartB(){const eq=PARTB.equipment,sv=PARTB.services;
-  return card(7,sectionPill(7),`<div class="pbnote">Typing in a dashed slot checks it. Auto-fills once the executed RS is parsed.</div>
+  return card(7,sectionPill(7),`<div class="pbnote">Pre-printed items are checked directly; dashed slots accept write-ins. This section fills automatically once rent schedule parsing is available.</div>
   <div class="pbgrp">Equipment / furnishings</div><div class="cols3"><div>${cbx('partb.equipment.0',eq[0])}${cbx('partb.equipment.1',eq[1])}${cbx('partb.equipment.2',eq[2])}${cbx('partb.equipment.3',eq[3])}</div>
     <div>${cbx('partb.equipment.4',eq[4])}${cbx('partb.equipment.5',eq[5])}${cbx('partb.equipment.6',eq[6])}${writein('e1')}</div>
     <div>${writein('e2')}${writein('e3')}${writein('e4')}${writein('e5')}</div></div>
@@ -396,16 +396,16 @@ function renderChecklist(){const F=CHECKLIST_FLAT;const item=n=>{const on=get('c
   let sel=0;for(let j=0;j<F.length;j++)if(get('check.'+j)==='1')sel++;
   return card(8,sectionPill(8),`<div class="cltop"><b>${sel} of ${F.length} selected</b><span class="clbtns"><button class="mini" id="clAll">✓ Check all</button><button class="mini" id="clNone">Clear</button></span></div><div class="cols2"><div>${left}</div><div>${right}</div></div>`);}
 function srcDocLabel(){
-  if(hasProg('rcs'))return{title:'Completed RCS report',sub:'The appraiser’s final report (PDF) — document 04 of the package. Session-only upload.',need:true};
-  if(hasProg('ocaf'))return{title:'CA’s auto-OCAF package',sub:'The CA’s letter + Exhibit A (PDF), for checking the worksheet numbers. Session-only upload.',need:true};
-  return{title:'CA’s UAF certification / UA sheet',sub:'Some CAs send one — upload for reference. Session-only.',need:false};}
+  if(hasProg('rcs'))return{title:'Completed RCS report',sub:'Upload the appraiser’s completed Rent Comparability Study (PDF). It is included in the submission package as document 04. Uploads are kept for this session only.',need:true};
+  if(hasProg('ocaf'))return{title:'CA’s auto-OCAF package',sub:'Upload the auto-OCAF letter and Exhibit A received from the contract administrator, for reference against the worksheet below. Uploads are kept for this session only.',need:true};
+  return{title:'CA’s UAF certification / UA sheet',sub:'Some contract administrators provide a pre-filled certification or utility allowance worksheet. Upload it here for reference.',need:false};}
 function renderSources(){
   const up=_rcsUpload;const sl=srcDocLabel();
   const rcs=up
-    ?`<div class="srcrow"><span class="ok">✓</span><div><b>${esc(up.name)}</b> <span class="parsed">uploaded · this session</span><div class="sub">Parsing isn’t applied yet — review the sections below.</div></div><button class="btn sm" id="upRcs">Replace</button></div>`
+    ?`<div class="srcrow"><span class="ok">✓</span><div><b>${esc(up.name)}</b> <span class="parsed">uploaded · this session</span><div class="sub">Automatic parsing is not yet available — review each section below.</div></div><button class="btn sm" id="upRcs">Replace</button></div>`
     :`<div class="srcrow${sl.need?'':' dim'}"><span class="mut">○</span><div><b>${esc(sl.title)}</b> <span class="${sl.need?'missing':'parsed'}">${sl.need?'not uploaded':'optional'}</span><div class="sub">${esc(sl.sub)}</div></div><button class="btn sm" id="upRcs">Upload PDF</button></div>`;
-  const rs=`<div class="srcrow dim"><span class="mut">○</span><div><b>Prior executed rent schedule</b> <span class="missing">not uploaded</span><div class="sub">Only used by parsing (not live yet).</div></div><button class="btn sm" disabled title="Parsing is a work in progress">Upload PDF</button></div>`;
-  const foot=`<div class="srcfoot"><button class="btn teal" disabled title="Work in progress">↻ Parse documents</button><span class="sub">Parsing is a <b>work in progress</b> — enter values below for now.</span></div><input type="file" id="rcsFile" accept="application/pdf,.pdf" style="display:none">`;
+  const rs=`<div class="srcrow dim"><span class="mut">○</span><div><b>Prior executed rent schedule</b> <span class="missing">not uploaded</span><div class="sub">Used by document parsing, which is not yet available.</div></div><button class="btn sm" disabled title="Parsing is a work in progress">Upload PDF</button></div>`;
+  const foot=`<div class="srcfoot"><button class="btn teal" disabled title="Work in progress">↻ Parse documents</button><span class="sub">Document parsing is in development — enter values directly in the sections below.</span></div><input type="file" id="rcsFile" accept="application/pdf,.pdf" style="display:none">`;
   return card(1,sectionPill(1),rcs+rs+foot);}
 
 function sectionKeys(n){if(n===10)return ['ocaf.g','ocaf.rate_type','ocaf.ds_annual','ocaf.ds_t12','ocaf.ds_f12','ocaf.factor_pub','ocaf.factor_custom','ocaf.factor_src'];
@@ -448,14 +448,14 @@ function renderOcaf(){const C=ocafCalc();
   const fy=get('ocaf.factor_fy'),pd=get('ocaf.factor_pubdate');const st=get('property.addr_state');
   const head='<div class="ocpull"><b>Published OCAF</b>'+ocafFactorCell()
     +'<button class="urev hudbtn" id="pullOcaf" title="Pull the latest published OCAF notice from the Federal Register">⤓ Federal Register</button>'
-    +'<span class="sub">'+(fy?('FY'+esc(fy)+(st?' · '+esc(st):'')+(pd?' · published '+esc(fmtDateLong(pd)):'')):'latest notice — custom entry is fine during publication lag')+'</span></div>';
+    +'<span class="sub">'+(fy?('FY'+esc(fy)+(st?' · '+esc(st):'')+(pd?' · published '+esc(fmtDateLong(pd)):'')):'latest published notice; enter the factor manually if the current year’s is not yet available')+'</span></div>';
   const ds='<div class="pbgrp">Owner-certified inputs</div><div class="ocds">'
     +selectCell({k:'ocaf.rate_type',label:'Debt rate type',opts:['Fixed rate','Floating rate']})
     +(fl?('<div class="field"><div class="flabel">Trailing-12 debt service</div>'+moneyBox('ocaf.ds_t12')+'</div><div class="field"><div class="flabel">Forward-12 debt service</div>'+moneyBox('ocaf.ds_f12')+'</div>')
         :('<div class="field"><div class="flabel">Annual debt service (P&amp;I + MIP)</div>'+moneyBox('ocaf.ds_annual')+'</div>'))
     +'<div class="field"><div class="flabel">Non-expiring S8 potential (line G)</div>'+moneyBox('ocaf.g')+'</div></div>'
-    +(fl?'<div class="pbnote">K = the <b>lesser</b> of Chatham T-12 / F-12, anchored to the rent-effective date.</div>'
-        :'<div class="pbnote">Verify against the loan payment history — it rides along as evidence.</div>');
+    +(fl?'<div class="pbnote">Line K uses the <b>lesser</b> of the trailing-12-month and forward-12-month debt service, anchored to the rent effective date.</div>'
+        :'<div class="pbnote">Confirm the annual debt service against the loan payment history, which accompanies the submission as supporting documentation.</div>');
   const L=(code,lab,val)=>'<div class="ocline"><span class="occode">'+code+'</span><span class="oclab">'+lab+'</span><span class="ocval" data-ocl="'+code+'">'+val+'</span></div>';
   const ws='<div class="pbgrp">HUD-9625 worksheet — computed live</div><div class="ocwork">'
     +L('E','Monthly Section 8 rent potential — units × current rents ('+secRef(6)+')',money(C.e))
@@ -478,7 +478,7 @@ function renderOcaf(){const C=ocafCalc();
       const nv=(cur>0&&C.R>0)?Math.round(cur*C.R):0;
       return '<div class="ocnrrow"><span style="flex:0 0 110px;font-weight:700">'+esc(br+(ba?'/'+ba:''))+'</span><span style="flex:0 0 78px;color:#8791a5">'+(n?(n+' unit'+(n===1?'':'s')):'—')+'</span><span>'+(cur>0?money(cur):'—')+' → <b data-ocnr="'+i+'">'+(nv?money(nv):'—')+'</b>'+(nv&&cur?' <span style="color:#166534">('+sMoney(nv-cur)+')</span>':'')+'</span></div>';}).join('')
     +'<div style="margin-top:10px"><button class="btn teal" id="ocafApply">Apply as proposed rents → '+secRef(6)+'</button></div>';
-  const warn=(!C.F)?'<div class="ucnote warn" style="display:block;margin:0 0 10px">⚠ Needs the unit mix and current rents ('+secRef(6)+').</div>':'';
+  const warn=(!C.F)?'<div class="ucnote warn" style="display:block;margin:0 0 10px">⚠ The worksheet requires the unit mix and current contract rents ('+secRef(6)+').</div>':'';
   return card(10,sectionPill(10),warn+head+ds+ws+nr);}
 function refreshOcafLines(k){if(k&&!/^(ocaf|units|ns8)\./.test(k))return;if(!document.querySelector('[data-ocl]'))return;const C=ocafCalc();
   const M={E:money(C.e),F:money(C.F),G:money(C.G),H:money(C.H),I:money(C.I),J:C.I>0?C.J.toFixed(4):'—',K:C.K>0?money2(C.K):'—',L:money2(C.L),M:money2(C.M),N:C.N>0?'× '+C.N.toFixed(3):'—',O:money2(C.O),P:money2(C.P),Q:money2(C.Q),R:C.R>0?'<b>'+C.R.toFixed(3)+'</b>':'—'};
@@ -529,9 +529,9 @@ function renderUaf(){
   const fy=get('uaf.factor_fy'),pd=get('uaf.factor_pubdate');const st=get('property.addr_state');
   const head='<div class="ocpull"><b>Published UAFs</b>'
     +'<button class="urev hudbtn" id="pullUaf" title="Pull this state’s utility allowance factors from HUD USER">⤓ HUD USER</button>'
-    +'<span class="sub">'+(fy?('FY'+esc(fy)+(st?' · '+esc(st):'')+(pd?' · file dated '+esc(fmtDateLong(pd)):'')):'one factor per utility per state')+'</span></div>';
+    +'<span class="sub">'+(fy?('FY'+esc(fy)+(st?' · '+esc(st):'')+(pd?' · file dated '+esc(fmtDateLong(pd)):'')):'one factor per utility, published by state')+'</span></div>';
   const fCells='<div class="uffrow">'+UAF_UTILS.map(x=>'<div class="field"><div class="flabel">'+x[1]+' factor</div>'+numBox('uaf.f_'+x[0],'1.039')+'</div>').join('')+'</div>';
-  const note='<div class="pbnote">Split each unit type’s current UA by utility — <b>tenant-paid only</b> (skip anything included in rent). Each utility rounds to whole dollars, then sums.</div>';
+  const note='<div class="pbnote">Enter each unit type’s current utility allowance by utility, for <b>tenant-paid utilities only</b> — utilities included in rent are not adjusted. Each utility is adjusted and rounded to the whole dollar before the total is summed.</div>';
   const rows=UNITS.map(i=>{const br=get('units.'+i+'.br')||'—';const ba=get('units.'+i+'.ba');const n=numf(get('units.'+i+'.num_units'));
     const cells=UAF_UTILS.map(x=>'<div class="field"><div class="flabel">'+x[1]+'</div>'+moneyBox('units.'+i+'.uac_'+x[0])+'</div>').join('');
     return '<div class="uafunit"><div class="uafname">'+esc(br+(ba?'/'+ba:''))+(n?' <span style="color:#8791a5;font-weight:400">· '+n+' unit'+(n===1?'':'s')+'</span>':'')+'</div><div class="uafcells">'+cells+'</div><div class="uafres" data-uafres="'+i+'">'+uafResHtml(i)+'</div></div>';}).join('');
@@ -594,9 +594,9 @@ function _renderCommand(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.ce
   } else {
     const C=ocafCalc();let dMo=0,units=0;UNITS.forEach(i=>{const n=numf(get('units.'+i+'.num_units')),cur=numf(get('units.'+i+'.current'));if(n&&cur&&C.R>0){dMo+=n*(Math.round(cur*C.R)-cur);units+=n;}});
     const ocafBits=hasProg('ocaf')
-      ?`<div class="cctitle">${C.R>0?('OCAF applies ×'+C.R.toFixed(3)+' to current contract rents'):'Complete the OCAF worksheet — factor and debt service'}</div><div class="ccsub">${C.pct>0?('Published ×'+C.N.toFixed(3)+(get('ocaf.factor_fy')?' (FY'+esc(get('ocaf.factor_fy'))+')':'')+' → ×'+(C.R>0?C.R.toFixed(3):'—')+' effective after the debt-service carve-out'):'Pull or enter the published factor ('+secRef(10)+').'}</div>
+      ?`<div class="cctitle">${C.R>0?('OCAF applies ×'+C.R.toFixed(3)+' to current contract rents'):'Complete the OCAF worksheet — factor and debt service'}</div><div class="ccsub">${C.pct>0?('Published ×'+C.N.toFixed(3)+(get('ocaf.factor_fy')?' (FY'+esc(get('ocaf.factor_fy'))+')':'')+' → ×'+(C.R>0?C.R.toFixed(3):'—')+' effective after the debt-service carve-out'):'Pull the published factor from the Federal Register, or enter it manually ('+secRef(10)+').'}</div>
         <div class="lift"><b>OCAF LIFT vs current rent roll</b><div class="liftnums"><span><b class="teal">${C.R>0?('+'+((C.R-1)*100).toFixed(1)+'%'):'—'}</b><i>increase</i></span><span><b>${units?sMoney(dMo/units):'+$0'}</b><i>per unit avg</i></span><span><b>${sMoney(dMo)}</b><i>/mo</i></span><span><b>${sK(dMo*12)}</b><i>annualized</i></span></div></div>`
-      :`<div class="cctitle">Utility allowance factor adjustment</div><div class="ccsub">Tenant-paid utilities × published state factors — contract rents unchanged.</div>`;
+      :`<div class="cctitle">Utility allowance factor adjustment</div><div class="ccsub">Tenant-paid utility allowances, adjusted by the published state factors. Contract rents are not affected.</div>`;
     card1=`<div class="ccard afford"><div class="cck">${esc(cycleProgs().map(x=>PROG_NAMES[x]||x).join(' + '))} ADJUSTMENT</div>${ocafBits}${hasProg('uaf')?uaStrip():''}</div>`;
   }
   el('cc').innerHTML=`
@@ -608,14 +608,14 @@ function _renderCommand(){const a=analysis();const pCur=a.ceil>0?clamp(a.cg/a.ce
 function pkgCard(){
   if(hasProg('rcs'))return `<div class="ccard"><div class="cck">THIS PACKAGE</div><div class="cctitle" style="font-size:15px">${_rcsUpload?'RCS report uploaded':'RCS report needed'}</div><div class="ccsub">${_rcsUpload?esc(_rcsUpload.name)+' — goes in as document 04':'Upload the completed RCS report in '+secRef(1)+' — it becomes document 04 of the package.'}</div>
      <div class="ccsub" style="margin-top:7px;color:#33405c"><b>The 6-document package</b></div><div class="drafts">${[['Cover letter (CA)',1],['Owner cover letter',1],['Owner’s checklist',1],['RCS report (uploaded PDF)',_rcsUpload?1:0],['Draft rent schedule',1],['Tenant notice',1]].map(d=>'<span>'+(d[1]?'✓ ':'○ ')+d[0]+'</span>').join('')}</div>
-     <div class="wb">Generated exactly as the form shows — “Update database” first.</div></div>`;
+     <div class="wb">Documents are generated from the form exactly as shown. Save with “Update database” before generating.</div></div>`;
   const docs=[];
   if(hasProg('ocaf'))docs.push('9625 worksheet (Q = P)','Corrected auto-OCAF letter — election box 1','Revised Exhibit A','Debt-service evidence');
   if(hasProg('uaf')){docs.push('UAF certification / breakdown');if(uafAnalysis().dec.length)docs.push('30-day tenant notice (UA decrease)','Tenant-comment certification');}
   docs.push('Revised rent schedule'+(hasProg('ocaf')&&hasProg('uaf')?' — one, merged OCAF + UAF':''));
   return `<div class="ccard"><div class="cck">THIS PACKAGE</div><div class="cctitle" style="font-size:15px">${esc(cycleProgs().map(x=>PROG_NAMES[x]||x).join(' + '))} package</div><div class="ccsub">${_rcsUpload?esc(_rcsUpload.name)+' uploaded — the cycle’s source document':esc(srcDocLabel().title)+(srcDocLabel().need?' goes in '+secRef(1):' — optional, '+secRef(1))}</div>
      <div class="ccsub" style="margin-top:7px;color:#33405c"><b>This cycle produces</b></div><div class="drafts">${docs.map(d=>'<span>○ '+d+'</span>').join('')}</div>
-     <div class="wb">Generated exactly as the form shows — “Update database” first.</div></div>`;}
+     <div class="wb">Documents are generated from the form exactly as shown. Save with “Update database” before generating.</div></div>`;}
 function chk(st,name,note){const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const cl=st==='warn'?'warn':(st==='info'?'info':'ok');return `<div class="chk"><span class="${cl}">${ic}</span><div><b>${name}</b><div class="sub">${note}</div></div></div>`;}
 
 function isStateKey(k){return /\.(ua_reviewed|safmr_reviewed|type_reviewed|num_reviewed|ua_custom|safmr_custom)$/.test(k)||k==='tenant.mgmt_source'||k==='poc.mode'||/^poc\.custom_/.test(k)||k==='rent_schedule.date_eff_source'||k==='rent_schedule.date_eff_custom'||k==='ocaf.factor_src';}
@@ -641,7 +641,7 @@ function renderRail(){const vis=visibleSections();const st={};vis.forEach(n=>st[
   el('railprog').innerHTML=`<b>${conf} of ${vis.length} confirmed</b>${need?`<div class="warnt">${need} need your review</div>`:''}<div class="track sm"><div style="width:${conf/vis.length*100}%;background:#166534"></div></div>`;
   const fl=attnFlags();el('railattn').style.display=fl.length?'block':'none';el('railattn').innerHTML=fl.length?`⚠ <b>${fl.length} to review</b>${fl.map(x=>`<div class="sub" style="margin-top:6px">${x}</div>`).join('')}`:'';}
 function renderAttention(){holdAnchor(_renderAttention);}
-function _renderAttention(){const f=attnFlags();el('attn').style.display=f.length?'block':'none';const n=f.length;el('attn').innerHTML=n?`⚠ <b>${n} thing${n>1?'s':''} ${n>1?'need':'needs'} your attention</b>${f.map(x=>`<div class="sub" style="margin-top:7px">${x}</div>`).join('')}<div class="sub" style="margin-top:9px;opacity:.72">Flagged in amber below.</div>`:'';}
+function _renderAttention(){const f=attnFlags();el('attn').style.display=f.length?'block':'none';const n=f.length;el('attn').innerHTML=n?`⚠ <b>${n} thing${n>1?'s':''} ${n>1?'need':'needs'} your attention</b>${f.map(x=>`<div class="sub" style="margin-top:7px">${x}</div>`).join('')}<div class="sub" style="margin-top:9px;opacity:.72">The affected fields are flagged in amber in the sections below.</div>`:'';}
 
 function renderBar(){const a=analysis();const conf=UNITS.filter(uaConflict).length,unres=UNITS.filter(uaUnresolved).length;const uaOk=conf===0||unres===0;
  const bc=(st,l)=>{const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const c=st==='warn'?'#b45309':(st==='info'?'#2563eb':'#166534');return `<span class="bchip"><b style="color:${c}">${ic}</b> ${l}</span>`;};
@@ -974,7 +974,7 @@ function renderLauncher(){
       +'<div class="lh-meta">'+esc(p.fha)+(p.city_state?' &middot; '+esc(p.city_state):'')+(p.total_units?' &middot; '+p.total_units+' units':'')+'</div>'
       +(p.entity?'<div class="lh-entity">'+esc(p.entity)+'</div>':'')+'</div>'
       +'<div class="lh-right"><div class="lh-tools"><button class="txtbtn" id="pRename">Rename</button><span class="dotsep">&middot;</span><button class="txtbtn del" id="pDelete">Delete</button></div><div class="lh-ring">'+ringSvg(pct,46)+'</div><div class="lh-rlab">'+pct+'% complete</div></div></div>'
-    +'<div class="lsec"><div class="lsec-t">Property letterhead</div>'+letter+'<div class="lh-note">Used on the tenant notice &mdash; the Related letterheads are built in.</div><input type="file" id="lhFile" accept="image/*,.pdf,application/pdf" style="display:none"></div>'
+    +'<div class="lsec"><div class="lsec-t">Property letterhead</div>'+letter+'<div class="lh-note">The uploaded letterhead appears on the tenant notice. All other letterheads are built into the document templates.</div><input type="file" id="lhFile" accept="image/*,.pdf,application/pdf" style="display:none"></div>'
     +'<div class="lsec"><div class="lsec-t">Cycles</div>'+cyclesHtml()+'<div class="progrow" style="margin-top:10px">'+soon('BBRA','Budget-Based Rent Adjustment')+'</div></div>';
   wireCycles();
   bootstrapFirstCycle(p);
@@ -1147,7 +1147,7 @@ async function genPackage(){
   if(numf(get('units.'+UNITS[0]+'.num_units'))<=0){setStatus('Cannot generate the package with zero units — the first unit type needs a unit count.');return;}
   let hasLh=false;try{const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;hasLh=!!(L&&L.data);}catch(e){}
   if(!hasLh){const alias=get('tenant.property_alias')||get('property.name')||'the property name';
-    dialogConfirm('No letterhead uploaded','The tenant notice will use a generated header (logo \u00b7 \u201c'+esc(alias)+'\u201d \u00b7 management address). Upload the real letterhead on the property page anytime.','Generate anyway',false,()=>{__genPackageRun();});return;}
+    dialogConfirm('No letterhead uploaded','The tenant notice will print with a generated header \u2014 the Related logo, \u201c'+esc(alias)+'\u201d, and the management address. A letterhead can be uploaded on the property page.','Generate anyway',false,()=>{__genPackageRun();});return;}
   await __genPackageRun();
 }
 /* Find where the letterhead's header art ends: scan the top half of the
@@ -1282,7 +1282,7 @@ async function genOcafUafPackage(){
   const needsNotice=hasProg('uaf')&&A.dec.length>0;
   let hasLh=false;try{const L=(mpdb&&activePid)?mpdb.getLetterhead(activePid):null;hasLh=!!(L&&L.data);}catch(e){}
   if(needsNotice&&!hasLh){const alias=get('tenant.property_alias')||get('property.name')||'the property name';
-    dialogConfirm('No letterhead uploaded','The UA decrease adds the 30-day tenant notice — it will use a generated header (logo · “'+esc(alias)+'” · management address).','Generate anyway',false,()=>{__genOcafUafRun();});return;}
+    dialogConfirm('No letterhead uploaded','The utility allowance decrease requires the 30-day tenant notice. Without a letterhead it will print with a generated header — the Related logo, “'+esc(alias)+'”, and the management address.','Generate anyway',false,()=>{__genOcafUafRun();});return;}
   await __genOcafUafRun();
 }
 async function __genOcafUafRun(){
