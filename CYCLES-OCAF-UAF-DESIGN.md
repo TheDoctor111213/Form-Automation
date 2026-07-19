@@ -91,8 +91,9 @@ Each cycle renders as an analysis card in the style of today's affordability-pro
 program chips (e.g. "OCAF + UAF"), year + effective date, status chip, a one-line
 derivation summary, the 150% gauge, and per-program metrics (OCAF: published vs.
 effective factor, $/yr delta; RCS: lift metrics; UAF: UA before→after per unit type).
-**Every cycle type runs the 150% test** — per the transcript, a UA jump can force a
-contract-rent change, so even a UAF-only cycle re-proves affordability.
+**The 150% SAFMR test is RCS-only (corrected 2026-07-17, per Matt):** it is the RCS
+Mandatory Market Rent Threshold, not an OCAF/UAF concept — OCAF/UAF cycles show their
+own program metrics (factor, rent delta, UA change) and never touch SAFMR.
 
 Statuses are **derived, not manual**: Draft / Package generated (+timestamp).
 **OPEN:** is a "submitted" state wanted, or does that live outside the tool?
