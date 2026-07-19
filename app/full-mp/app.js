@@ -425,6 +425,7 @@ function card(n,pill,body){return `<div class="card"><div class="chead"><span cl
    P = L + O, and line Q TAKES P (the RCS cap is not applied — manager's rule,
    confirmed in the wild: CA-filled worksheets show Q = P, "RCS Expires: N/A").
    R = Q ÷ F rounded to 3 decimals, applied per unit type, rounded to dollars. */
+function effYear(){const m=String(dateEffResolved()||'').match(/(\d{4})/);return m?m[1]:'';}
 function ocafFactorResolved(){const src=get('ocaf.factor_src')||(get('ocaf.factor_pub')?'fr':'custom');return src==='custom'?numf(get('ocaf.factor_custom')):numf(get('ocaf.factor_pub'));}
 function ocafK(){const rt=get('ocaf.rate_type')||'Fixed rate';if(/floating/i.test(rt)){const t=numf(get('ocaf.ds_t12')),f=numf(get('ocaf.ds_f12'));return (t>0&&f>0)?Math.min(t,f):(t||f);}return numf(get('ocaf.ds_annual'));}
 function ocafCalc(){let e=0;UNITS.forEach(i=>{e+=numf(get('units.'+i+'.num_units'))*numf(get('units.'+i+'.current'));});
@@ -484,19 +485,22 @@ function refreshOcafLines(k){if(k&&!/^(ocaf|units|ns8)\./.test(k))return;if(!doc
   const M={E:money(C.e),F:money(C.F),G:money(C.G),H:money(C.H),I:money(C.I),J:C.I>0?C.J.toFixed(4):'—',K:C.K>0?money2(C.K):'—',L:money2(C.L),M:money2(C.M),N:C.N>0?'× '+C.N.toFixed(3):'—',O:money2(C.O),P:money2(C.P),Q:money2(C.Q),R:C.R>0?'<b>'+C.R.toFixed(3)+'</b>':'—'};
   document.querySelectorAll('[data-ocl]').forEach(x=>{const c=x.getAttribute('data-ocl');if(M[c]!=null)x.innerHTML=M[c];});
   UNITS.forEach(i=>{const cur=numf(get('units.'+i+'.current'));const nv=(cur>0&&C.R>0)?Math.round(cur*C.R):0;const b=document.querySelector('[data-ocnr="'+i+'"]');if(b)b.textContent=nv?money(nv):'—';});}
-async function pullOcafFactor(){
-  if(!supaClient){setStatus('The OCAF pull needs the hosted backend — sign in first.');return;}
-  const b0=el('pullOcaf');if(b0)b0.disabled=true;setStatus('Pulling the latest OCAF notice from the Federal Register…');
-  try{const r=await supaClient.functions.invoke('ocaf-factor',{body:{}});
+async function pullOcafFactor(opts){opts=opts||{};const auto=!!opts.auto;
+  if(!supaClient){if(!auto)setStatus('The OCAF pull needs the hosted backend — sign in first.');return;}
+  if(auto&&(get('ocaf.factor_pub')||get('ocaf.factor_custom')))return; // never overwrite entered data
+  if(auto&&!effYear())return; // no effective year to verify against
+  const b0=el('pullOcaf');if(b0)b0.disabled=true;if(!auto)setStatus('Pulling the OCAF notice from the Federal Register…');
+  try{const r=await supaClient.functions.invoke('ocaf-factor',{body:{year:effYear()||undefined}});
     if(r.error){let m='request failed';try{m=(await r.error.context.json()).error||m;}catch(e){m=r.error.message||m;}throw new Error(m);}
     const d=r.data||{};if(d.error)throw new Error(d.error);
     const stt=get('property.addr_state');let v=(stt&&d.factors&&d.factors[stt]!=null)?d.factors[stt]:null;let usedNat=false;
     if(v==null&&d.national!=null){v=d.national;usedNat=true;}
     if(v==null)throw new Error('No factor for state '+(stt||'(none)')+' in the FY'+d.fy+' notice.');
+    if(auto&&String(d.fy)!==String(effYear())){setStatus('The FY'+effYear()+' OCAF isn’t published yet — latest is FY'+d.fy+'. Pull it manually, or enter a custom factor.');return;}
     form=store.editForm(form,'ocaf.factor_pub',String(v));form=store.editForm(form,'ocaf.factor_fy',String(d.fy||''));form=store.editForm(form,'ocaf.factor_pubdate',String(d.publication_date||''));form=store.editForm(form,'ocaf.factor_src','fr');
     renderBody();
     setStatus('FY'+d.fy+' OCAF '+(usedNat?'(national average — set the property state in '+secRef(2)+' for the state factor)':('for '+stt))+': '+v+'% — published '+fmtDateLong(d.publication_date)+'. Review, then “Update database”.');
-  }catch(e){setStatus('OCAF pull failed: '+(e&&e.message?e.message:e));}
+  }catch(e){if(!auto)setStatus('OCAF pull failed: '+(e&&e.message?e.message:e));}
   finally{const b=el('pullOcaf');if(b)b.disabled=false;}}
 async function ocafApplyRents(){const C=ocafCalc();
   if(!(C.R>0)){setStatus('Enter the OCAF factor and debt service first — the increase factor (R) drives the new rents.');return;}
@@ -547,15 +551,18 @@ function refreshUafLines(k){if(k&&!/^(uaf|units)\./.test(k))return;if(!document.
   bn.innerHTML=A.any?(A.dec.length
     ?'<div class="ucnote warn" style="display:block;margin:10px 0 0">⚠ UA decrease for '+A.dec.length+' unit type'+(A.dec.length>1?'s':'')+' — the 30-day tenant notice and the owner’s tenant-comment certification are required in the package.</div>'
     :'<div class="ucnote ok" style="display:block;margin:10px 0 0">✓ No UA decreases — no tenant notice required.</div>'):'';}
-async function pullUafFactors(){
-  if(!supaClient){setStatus('The UAF pull needs the hosted backend — sign in first.');return;}
-  const b0=el('pullUaf');if(b0)b0.disabled=true;setStatus('Pulling utility allowance factors from HUD USER…');
-  try{const r=await supaClient.functions.invoke('uaf-factor',{body:{}});
+async function pullUafFactors(opts){opts=opts||{};const auto=!!opts.auto;
+  if(!supaClient){if(!auto)setStatus('The UAF pull needs the hosted backend — sign in first.');return;}
+  if(auto&&UAF_UTILS.some(u=>get('uaf.f_'+u[0])))return; // never overwrite entered data
+  if(auto&&!effYear())return;
+  const b0=el('pullUaf');if(b0)b0.disabled=true;if(!auto)setStatus('Pulling utility allowance factors from HUD USER…');
+  try{const r=await supaClient.functions.invoke('uaf-factor',{body:{year:effYear()||undefined}});
     if(r.error){let m='request failed';try{m=(await r.error.context.json()).error||m;}catch(e){m=r.error.message||m;}throw new Error(m);}
     const d=r.data||{};if(d.error)throw new Error(d.error);
     const stt=get('property.addr_state');const rec=(stt&&d.factors&&d.factors[stt])||d.national;
     if(!rec)throw new Error('No factors for state '+(stt||'(none)')+' in the FY'+d.fy+' file.');
     const usedNat=!(stt&&d.factors&&d.factors[stt]);
+    if(auto&&String(d.fy)!==String(effYear())){setStatus('The FY'+effYear()+' UAFs aren’t published yet — latest is FY'+d.fy+'. Pull them manually, or enter the factors.');return;}
     const r4=x=>String(Math.round((+x||0)*10000)/10000);
     form=store.editForm(form,'uaf.f_oil',r4(rec.oil));form=store.editForm(form,'uaf.f_gas',r4(rec.gas));form=store.editForm(form,'uaf.f_electric',r4(rec.electric));form=store.editForm(form,'uaf.f_water',r4(rec.water));
     form=store.editForm(form,'uaf.factor_fy',String(d.fy||''));
@@ -563,7 +570,7 @@ async function pullUafFactors(){
     form=store.editForm(form,'uaf.factor_pubdate',(lm&&!isNaN(lm))?lm.toISOString().slice(0,10):'');
     renderBody();
     setStatus('FY'+d.fy+' UAFs '+(usedNat?'(U.S. — set the property state in '+secRef(2)+' for the state factors)':('for '+stt))+': oil '+r4(rec.oil)+' · gas '+r4(rec.gas)+' · electric '+r4(rec.electric)+' · water/sewer/trash '+r4(rec.water)+'. Review, then “Update database”.');
-  }catch(e){setStatus('UAF pull failed: '+(e&&e.message?e.message:e));}
+  }catch(e){if(!auto)setStatus('UAF pull failed: '+(e&&e.message?e.message:e));}
   finally{const b=el('pullUaf');if(b)b.disabled=false;}}
 async function uafApplyUas(){let n=0;
   UNITS.forEach(i=>{const r=uafRow(i);if(r.curSum>0&&r.newSum>0){form=store.editForm(form,'units.'+i+'.ua_custom',String(r.newSum));form=store.editForm(form,'units.'+i+'.ua_source','custom');form=store.editForm(form,'units.'+i+'.ua_reviewed','1');n++;}});
@@ -640,8 +647,7 @@ function renderRail(){const vis=visibleSections();const st={};vis.forEach(n=>st[
   el('rail').innerHTML=vis.map(n=>`<div class="railitem"><span class="ri ${st[n]==='warn'?'warn':'ok'}">${st[n]==='warn'?'!':'✓'}</span><span class="rname">${_secPos[n]||n}. ${SECTION_TITLES[n]}</span></div>`).join('');
   el('railprog').innerHTML=`<b>${conf} of ${vis.length} confirmed</b>${need?`<div class="warnt">${need} need your review</div>`:''}<div class="track sm"><div style="width:${conf/vis.length*100}%;background:#166534"></div></div>`;
   const fl=attnFlags();el('railattn').style.display=fl.length?'block':'none';el('railattn').innerHTML=fl.length?`⚠ <b>${fl.length} to review</b>${fl.map(x=>`<div class="sub" style="margin-top:6px">${x}</div>`).join('')}`:'';}
-function renderAttention(){holdAnchor(_renderAttention);}
-function _renderAttention(){const f=attnFlags();el('attn').style.display=f.length?'block':'none';const n=f.length;el('attn').innerHTML=n?`⚠ <b>${n} thing${n>1?'s':''} ${n>1?'need':'needs'} your attention</b>${f.map(x=>`<div class="sub" style="margin-top:7px">${x}</div>`).join('')}<div class="sub" style="margin-top:9px;opacity:.72">The affected fields are flagged in amber in the sections below.</div>`:'';}
+function renderAttention(){/* the section rail carries the attention list; the old top banner duplicated it */}
 
 function renderBar(){const a=analysis();const conf=UNITS.filter(uaConflict).length,unres=UNITS.filter(uaUnresolved).length;const uaOk=conf===0||unres===0;
  const bc=(st,l)=>{const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const c=st==='warn'?'#b45309':(st==='info'?'#2563eb':'#166534');return `<span class="bchip"><b style="color:${c}">${ic}</b> ${l}</span>`;};
@@ -965,6 +971,8 @@ async function openCycleForm(cid){
   fixSavedToggles();applyChecklistDefaults();deriveUnits();renderFormHeader();renderBody();
   show('Form');window.scrollTo(0,0);
   if(cy&&cy.dominant&&cy.programs.indexOf('rcs')>=0)ensureHudSafmr({});   // auto-pull: dominant RCS cycles only
+  if(cy&&cy.programs.indexOf('ocaf')>=0)pullOcafFactor({auto:true});      // year-verified; empty fields only
+  if(cy&&cy.programs.indexOf('uaf')>=0)pullUafFactors({auto:true});
 }
 function renderLauncher(){
   const p=mpdb.listProperties().find(x=>x.id===activePid);if(!p){openMenu();return;}
