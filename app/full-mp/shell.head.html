@@ -2,7 +2,7 @@
 *{box-sizing:border-box} body{margin:0;background:#e4e8f1;color:#1f2937;font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:13.5px}
 .hdr{background:#1e3a5f;color:#fff;padding:13px 26px;display:flex;justify-content:space-between;align-items:center}
 .hdr h1{margin:0;font-size:17px} .hdr .sub{font-size:11px;color:#9fb2cc;letter-spacing:.6px;text-transform:uppercase;margin-top:2px}
-.progs{display:flex;gap:7px} .prog{font-size:12px;font-weight:700;padding:5px 13px;border-radius:20px} .prog.on{background:#fff;color:#1e3a5f} .prog.off{background:rgba(255,255,255,.12);color:#9fb2cc;cursor:default}
+.progs{display:flex;gap:7px} .prog{font-size:12px;font-weight:700;padding:5px 13px;border-radius:20px} .prog.on{background:#fff;color:#1e3a5f} .prog.off{background:rgba(255,255,255,.12);color:#9fb2cc;cursor:default} .progs .prog[data-progpill]{cursor:pointer} .progs .prog.off[data-progpill]:hover{background:rgba(255,255,255,.22);color:#dbe5f2} .progs .prog.dis{opacity:.45;cursor:default}
 #ccbar{position:fixed;top:0;left:0;right:0;z-index:50;background:#fff;border-bottom:1px solid #e0e6f0;box-shadow:0 2px 8px rgba(20,40,80,.06);padding:7px 26px;display:flex;align-items:center;gap:22px;transform:translateY(-102%);opacity:0;transition:transform .22s ease,opacity .18s ease}
 body.scrolled #ccbar{transform:translateY(0);opacity:1}
 #ccbar .bl{display:flex;align-items:center;gap:12px;flex:0 0 auto} #ccbar .minigauge{position:relative;width:150px;height:9px;background:#e9ecf1;border-radius:3px} #ccbar .seg{position:absolute;top:0;height:100%} #ccbar .seg.dark{background:#2f7d57;border-radius:3px 0 0 3px} #ccbar .seg.light{background:#8fd2ab} #ccbar .oend{position:absolute;right:-1px;top:-2px;width:2px;height:13px;background:#f59e0b}
@@ -345,7 +345,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
      <div class="layout">
        <div class="rail"><div class="kick">SECTIONS</div><div id="rail"></div><div class="railattn" id="railattn"></div><div class="railprog" id="railprog"></div>
          <div class="kick" style="margin-top:12px">SOURCE KEY</div>
-         <div class="key"><span><i class="sw" style="background:#e8f0fe;border-left-color:#2563eb"></i>On file (database)</span><span><i class="sw" style="background:#e9f5f2;border-left-color:#0f766e"></i>API-filled (this cycle)</span><span><i class="sw" style="background:#fbf1e6;border-left-color:#b45309"></i>Overridden</span><span><i class="sw" style="background:#f6f7f9;border-left-color:#64748b"></i>New &mdash; not yet saved</span></div>
+         <div class="key"><span><i class="sw" style="background:#e8f0fe;border-left-color:#2563eb"></i>On file (database)</span><span><i class="sw" style="background:#e9f5f2;border-left-color:#0f766e"></i>API-filled (this package)</span><span><i class="sw" style="background:#fbf1e6;border-left-color:#b45309"></i>Overridden</span><span><i class="sw" style="background:#f6f7f9;border-left-color:#64748b"></i>New &mdash; not yet saved</span></div>
        </div>
        <div class="main"><div id="sections"></div><div class="footer"><button class="btn p" id="bSave">Update database</button><button class="btn p" id="bGenerate">Generate package</button></div></div>
      </div>

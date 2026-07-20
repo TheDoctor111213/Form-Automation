@@ -53,7 +53,7 @@ const bridge={getDb:async()=>mpdb?(activeCid?mpdb.getFlatCycle(activeCid):mpdb.g
 const store=makeStore(bridge,ALL_KEYS);
 let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let NS8=[]; let _undoStack=[]; let _undoNR=[]; let _undoLI=[]; let _pending=null,_refocusSel=null,_pendingSnap=null; let _rcsUpload=null;
 
-const CLR={database:['#2563eb','#e8f0fe','On file'],'this-cycle':['#0f766e','#e9f5f2','API / this cycle'],overridden:['#b45309','#fbf1e6','Overridden'],'auto-calculated':['#2563eb','#e8f0fe','Auto-calc'],'new':['#64748b','#f6f7f9','New']};
+const CLR={database:['#2563eb','#e8f0fe','On file'],'this-cycle':['#0f766e','#e9f5f2','API / this package'],overridden:['#b45309','#fbf1e6','Overridden'],'auto-calculated':['#2563eb','#e8f0fe','Auto-calc'],'new':['#64748b','#f6f7f9','New']};
 const TODAY=new Date().toISOString().slice(0,10);
 const el=id=>document.getElementById(id); const get=k=>form[k]?form[k].value:'';
 const numf=v=>{const n=parseFloat(String(v||'').replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;};
@@ -642,8 +642,8 @@ function pkgCard(){
   if(hasProg('ocaf'))docs.push('9625 worksheet (Q = P)','Corrected auto-OCAF letter — election box 1','Revised Exhibit A','Debt-service evidence');
   if(hasProg('uaf')){docs.push('UAF certification / breakdown');if(uafAnalysis().dec.length)docs.push('30-day tenant notice (UA decrease)','Tenant-comment certification');}
   docs.push('Revised rent schedule'+(hasProg('ocaf')&&hasProg('uaf')?' — one, merged OCAF + UAF':''));
-  return `<div class="ccard"><div class="cck">THIS PACKAGE</div><div class="cctitle" style="font-size:15px">${esc(cycleProgs().map(x=>PROG_NAMES[x]||x).join(' + '))} package</div><div class="ccsub">${_rcsUpload?esc(_rcsUpload.name)+' uploaded — the cycle’s source document':esc(srcDocLabel().title)+(srcDocLabel().need?' goes in '+secRef(1):' — optional, '+secRef(1))}</div>
-     <div class="ccsub" style="margin-top:7px;color:#33405c"><b>This cycle produces</b></div><div class="drafts">${docs.map(d=>'<span>○ '+d+'</span>').join('')}</div>
+  return `<div class="ccard"><div class="cck">THIS PACKAGE</div><div class="cctitle" style="font-size:15px">${esc(cycleProgs().map(x=>PROG_NAMES[x]||x).join(' + '))} package</div><div class="ccsub">${_rcsUpload?esc(_rcsUpload.name)+' uploaded — the package’s source document':esc(srcDocLabel().title)+(srcDocLabel().need?' goes in '+secRef(1):' — optional, '+secRef(1))}</div>
+     <div class="ccsub" style="margin-top:7px;color:#33405c"><b>This package includes</b></div><div class="drafts">${docs.map(d=>'<span>○ '+d+'</span>').join('')}</div>
      <div class="wb">Documents are generated from the form exactly as shown. Save with “Update database” before generating.</div></div>`;}
 function chk(st,name,note){const ic=st==='warn'?'⚠':(st==='info'?'ⓘ':'✓');const cl=st==='warn'?'warn':(st==='info'?'info':'ok');return `<div class="chk"><span class="${cl}">${ic}</span><div><b>${name}</b><div class="sub">${note}</div></div></div>`;}
 
@@ -922,16 +922,16 @@ function cyclePane(c){
   let rows='';
   if(c.programs.indexOf('ocaf')>=0){const C=G.ocafCalcRec(rec);let dMo=0;(C.rows||[]).forEach(r=>{if(r.n&&r.c&&C.R>0)dMo+=r.n*(Math.round(r.c*C.R)-r.c);});
     rows+=C.R>0?('<div class="aff-top"><span class="aff-k">OCAF</span><span class="aff-pass ok">\u00d7'+C.R.toFixed(3)+' effective \u00b7 '+sMoney(dMo)+'/mo \u00b7 '+sK(dMo*12)+'/yr</span></div>')
-              :'<div class="aff-top"><span class="aff-k">OCAF</span><span class="aff-pass over">worksheet incomplete \u2014 open the cycle</span></div>';}
+              :'<div class="aff-top"><span class="aff-k">OCAF</span><span class="aff-pass over">worksheet incomplete \u2014 open the package</span></div>';}
   if(c.programs.indexOf('uaf')>=0){const U=G.uafCalcRec(rec);let uaMo=0;U.rows.forEach(r=>{uaMo+=(r.n||0)*(r.newSum-r.curSum);});
     rows+=U.rows.length?('<div class="aff-top"><span class="aff-k">UAF</span><span class="aff-pass '+(U.dec.length?'over':'ok')+'">'+U.rows.length+' unit type'+(U.rows.length>1?'s':'')+' \u00b7 '+sMoney(uaMo)+' UA/mo'+(U.dec.length?' \u00b7 '+U.dec.length+' decrease'+(U.dec.length>1?'s':''):'')+'</span></div>')
-              :'<div class="aff-top"><span class="aff-k">UAF</span><span class="aff-pass over">UA components not entered \u2014 open the cycle</span></div>';}
+              :'<div class="aff-top"><span class="aff-k">UAF</span><span class="aff-pass over">UA components not entered \u2014 open the package</span></div>';}
   return '<div class="aff">'+rows+'</div>';
 }
 function cyclesHtml(){
   const cs=mpdb.listCycles(activePid);
-  const btn='<button class="btn p" id="bNewCycle" style="margin-bottom:10px">+ Start new cycle</button>';
-  if(!cs.length)return btn+'<div class="lh-note">No cycles yet \u2014 start one to work on this property\u2019s renewal.</div>';
+  const btn='<button class="btn p" id="bNewCycle" style="margin-bottom:10px">+ Start new package</button>';
+  if(!cs.length)return btn+'<div class="lh-note">No packages yet \u2014 start one to work on this property\u2019s renewal.</div>';
   return btn+cs.map(c=>{
     const gen=c.generated&&c.generated.at;
     return '<div class="cycard'+(c.dominant?' dom':'')+'" data-cyopen="'+c.id+'">'
@@ -946,7 +946,7 @@ function wireCycles(){
   const b=el('bNewCycle');if(b)b.onclick=newCycleDialog;
   document.querySelectorAll('[data-cyopen]').forEach(x=>x.onclick=()=>openCycleForm(x.getAttribute('data-cyopen')));
   document.querySelectorAll('[data-cydel]').forEach(x=>x.onclick=(e)=>{e.stopPropagation();const id=x.getAttribute('data-cydel');
-    dialogConfirm('Delete cycle','This permanently removes the cycle and its saved data. The property record is untouched.','Delete',true,async()=>{try{await mpdb.deleteCycle(id);renderLauncher();}catch(e){saveFailedModal(e);}});});
+    dialogConfirm('Delete package','This permanently removes the package and its saved data. The property record is untouched.','Delete',true,async()=>{try{await mpdb.deleteCycle(id);renderLauncher();}catch(e){saveFailedModal(e);}});});
 }
 function bootstrapFirstCycle(p){
   // migration: an existing single-record property becomes its own cycle #1
@@ -963,8 +963,8 @@ function bootstrapFirstCycle(p){
     .catch(e=>saveFailedModal(e));
 }
 function newCycleDialog(){
-  modal('<div class="dlg-t">Start new cycle</div>'
-    +'<div class="dlg-field"><label>This cycle completes</label>'
+  modal('<div class="dlg-t">Start new package</div>'
+    +'<div class="dlg-field"><label>This package completes</label>'
     +'<div class="cypick"><label class="cyopt"><input type="checkbox" id="cyRCS"> RCS \u2014 5-year market reset</label>'
     +'<label class="cyopt"><input type="checkbox" id="cyOCAF"> OCAF \u2014 annual factor adjustment</label>'
     +'<label class="cyopt"><input type="checkbox" id="cyUAF"> UAF \u2014 utility allowance factor</label></div></div>'
@@ -1000,7 +1000,7 @@ function renderLauncher(){
   const p=mpdb.listProperties().find(x=>x.id===activePid);if(!p){openMenu();return;}
   const pct=Math.round(p.completeness*100);const a=mpdb.propertyAnalysis(activePid);const lh=mpdb.getLetterhead(activePid);
   const _domCy=mpdb.listCycles(activePid).find(c=>c.dominant);
-  const rcsLine=(_domCy&&_domCy.programs.indexOf('rcs')<0)?(_domCy.programs.map(x=>PROG_NAMES[x]||x).join(' + ')+' cycle &middot; see the cycle card below'):((a.total_units&&a.proposed_gpr)?((a.pass?'PASS':'OVER')+' &middot; '+sPct(a.pct)+' &middot; '+money(a.proposed_gpr)+'/mo'):(a.total_units?'rents not entered yet':'set up units &amp; rents'));
+  const rcsLine=(_domCy&&_domCy.programs.indexOf('rcs')<0)?(_domCy.programs.map(x=>PROG_NAMES[x]||x).join(' + ')+' package &middot; see the package card below'):((a.total_units&&a.proposed_gpr)?((a.pass?'PASS':'OVER')+' &middot; '+sPct(a.pct)+' &middot; '+money(a.proposed_gpr)+'/mo'):(a.total_units?'rents not entered yet':'set up units &amp; rents'));
   const soon=(code,name)=>'<div class="progcard soon"><div class="pg-h"><span class="pg-code">'+code+'</span><span class="soonchip">Coming soon</span></div><div class="pg-name">'+name+'</div></div>';
   const lhIsPdf=String(lh.data||'').indexOf('data:application/pdf')===0;
   const lhSub=lh.data?(lhIsPdf?'PDF letterhead &middot; the tenant notice prints on it full-page':'Property letterhead &middot; reused on every package'):'<span style="color:#b4552d">Not print-ready &mdash; re-upload the letterhead (PDF, PNG or JPG) so it prints on the tenant notice</span>';
@@ -1013,7 +1013,7 @@ function renderLauncher(){
       +(p.entity?'<div class="lh-entity">'+esc(p.entity)+'</div>':'')+'</div>'
       +'<div class="lh-right"><div class="lh-tools"><button class="txtbtn" id="pRename">Rename</button><span class="dotsep">&middot;</span><button class="txtbtn del" id="pDelete">Delete</button></div><div class="lh-ring">'+ringSvg(pct,46)+'</div><div class="lh-rlab">'+pct+'% complete</div></div></div>'
     +'<div class="lsec"><div class="lsec-t">Property letterhead</div>'+letter+'<div class="lh-note">The uploaded letterhead appears on the tenant notice. All other letterheads are built into the document templates.</div><input type="file" id="lhFile" accept="image/*,.pdf,application/pdf" style="display:none"></div>'
-    +'<div class="lsec"><div class="lsec-t">Cycles</div>'+cyclesHtml()+'<div class="progrow" style="margin-top:10px">'+soon('BBRA','Budget-Based Rent Adjustment')+'</div></div>';
+    +'<div class="lsec"><div class="lsec-t">Packages</div>'+cyclesHtml()+'<div class="progrow" style="margin-top:10px">'+soon('BBRA','Budget-Based Rent Adjustment')+'</div></div>';
   wireCycles();
   bootstrapFirstCycle(p);
   el('pRename').onclick=()=>dialogInput('Rename property','Property name',p.name,'Save',async nm=>{if(!nm)return;try{await mpdb.renameProperty(activePid,nm);renderLauncher();}catch(e){saveFailedModal(e);}});
@@ -1102,18 +1102,31 @@ function renderFormHeader(){
   const wrap=document.querySelector('.progs');
   if(wrap&&cy){
     const on=p=>cy.programs.indexOf(p)>=0;
-    wrap.innerHTML=['rcs','ocaf','uaf'].map(p=>'<span class="prog '+(on(p)?'on':'off')+'"'+(p==='uaf'?' id="pillUaf" style="cursor:pointer" title="'+(on('uaf')?'Remove the UAF from this cycle':'Add a UAF to this cycle')+'"':'')+'>'+PROG_NAMES[p]+'</span>').join('')+'<span class="prog off">BBRA</span>';
-    const pu=el('pillUaf');if(pu)pu.onclick=toggleCycleUaf;
+    const EXCL='RCS and OCAF never share a package \u2014 remove the other first';
+    const pill=(p,dis,title)=>'<span class="prog '+(on(p)?'on':'off')+(dis?' dis':'')+'"'+(dis?'':' data-progpill="'+p+'"')+' title="'+title+'">'+PROG_NAMES[p]+'</span>';
+    const rcsDis=!on('rcs')&&on('ocaf'), ocafDis=!on('ocaf')&&on('rcs');
+    wrap.innerHTML=pill('rcs',rcsDis,rcsDis?EXCL:(on('rcs')?'Remove the RCS from this package':'Add an RCS to this package'))
+      +pill('ocaf',ocafDis,ocafDis?EXCL:(on('ocaf')?'Remove the OCAF from this package':'Add an OCAF to this package'))
+      +pill('uaf',false,on('uaf')?'Remove the UAF from this package':'Add a UAF to this package')
+      +'<span class="prog off dis" title="Coming soon">BBRA</span>';
+    wrap.querySelectorAll('[data-progpill]').forEach(x=>x.onclick=()=>toggleCycleProg(x.getAttribute('data-progpill')));
   }
 }
-async function toggleCycleUaf(){
+async function toggleCycleProg(p){
   if(!activeCid)return;
   const cy=mpdb.listCycles(activePid).find(c=>c.id===activeCid);if(!cy)return;
-  const has=cy.programs.indexOf('uaf')>=0;
-  const programs=has?cy.programs.filter(p=>p!=='uaf'):cy.programs.concat(['uaf']);
+  const has=cy.programs.indexOf(p)>=0;
+  if(!has&&p==='rcs'&&cy.programs.indexOf('ocaf')>=0){setStatus('RCS and OCAF never share a package \u2014 remove the OCAF first.');return;}
+  if(!has&&p==='ocaf'&&cy.programs.indexOf('rcs')>=0){setStatus('RCS and OCAF never share a package \u2014 remove the RCS first.');return;}
+  const programs=has?cy.programs.filter(x=>x!==p):cy.programs.concat([p]);
+  if(!programs.length){setStatus('A package needs at least one program.');return;}
   try{await mpdb.setCyclePrograms(activeCid,programs);}catch(e){saveFailedModal(e);return;}
   activeProgram=programs.map(x=>PROG_NAMES[x]||x).join(' + ');
-  renderFormHeader();renderBody();setStatus(has?'UAF removed from this cycle.':'UAF added to this cycle.');
+  renderFormHeader();renderBody();
+  setStatus((has?PROG_NAMES[p]+' removed from this package.':PROG_NAMES[p]+' added to this package.'));
+  if(!has&&p==='ocaf')pullOcafFactor({auto:true});
+  if(!has&&p==='uaf')pullUafFactors({auto:true});
+  if(!has&&p==='rcs')ensureHudSafmr({});
 }
 
 /* ---- EXIT: save or discard, then back to the menu -------------------- */
@@ -1126,8 +1139,8 @@ async function exitForm(){
 }
 function openExit(){const nm=get('property.name')||'this property';
   const fresh=activeCid&&_cyFresh===activeCid;
-  const body=fresh?'This cycle was never saved \u2014 leaving without saving deletes it.':'You have unsaved edits to <b>'+esc(nm)+'</b>. Save them to the database so they pre-fill your next submission, or discard them and keep the last saved record.';
-  modal('<div class="dlg-t">Save changes before leaving?</div><div class="dlg-b">'+body+'</div><div class="dlg-row"><button class="btn" id="dlgKeep">Keep editing</button><span class="dlg-sp"></span><button class="btn danger" id="dlgDiscard">'+(fresh?'Delete cycle':'Discard changes')+'</button><button class="btn p" id="dlgSave">Save &amp; exit</button></div>');
+  const body=fresh?'This package was never saved \u2014 leaving without saving deletes it.':'You have unsaved edits to <b>'+esc(nm)+'</b>. Save them to the database so they pre-fill your next submission, or discard them and keep the last saved record.';
+  modal('<div class="dlg-t">Save changes before leaving?</div><div class="dlg-b">'+body+'</div><div class="dlg-row"><button class="btn" id="dlgKeep">Keep editing</button><span class="dlg-sp"></span><button class="btn danger" id="dlgDiscard">'+(fresh?'Delete package':'Discard changes')+'</button><button class="btn p" id="dlgSave">Save &amp; exit</button></div>');
   el('dlgKeep').onclick=closeModal;
   el('dlgDiscard').onclick=async()=>{form=await store.fillForm();await refreshSnap();fixSavedToggles();deriveUnits();closeModal();await exitForm();setStatus('');};
   el('dlgSave').onclick=()=>requestSave(()=>{closeModal();openLauncher(activePid);});
