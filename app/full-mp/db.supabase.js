@@ -27,7 +27,7 @@ function makeSupabaseDb(client) {
     'property.addr_street': 'address_street', 'property.addr_city': 'address_city', 'property.addr_state': 'address_state', 'property.addr_zip': 'address_zip',
     'owner.entity_name': 'entity_name', 'owner.entity_type': 'entity_type', 'owner.entity_type_other': 'entity_type_other', 'owner.gp': 'general_partner',
     'poc.name': 'owner_poc_name', 'poc.email': 'owner_poc_email', 'poc.phone': 'owner_poc_phone',
-    'sig.name': 'signatory_name', 'sig.title': 'signatory_title',
+    'sig.name': 'signatory_name', 'sig.title': 'signatory_title', 'sig.principal': 'signatory_principal',
     'ca.org': 'ca_org', 'ca.prefix': 'ca_contact_prefix', 'ca.name': 'ca_contact_name', 'ca.position': 'ca_contact_title',
     'ca.addr_street': 'ca_address_street', 'ca.addr_city': 'ca_address_city', 'ca.addr_state': 'ca_address_state', 'ca.addr_zip': 'ca_address_zip',
     'tenant.sender_name': 'tenant_sender_name', 'tenant.sender_title': 'tenant_sender_title', 'tenant.mgmt_source': 'tenant_mgmt_source',

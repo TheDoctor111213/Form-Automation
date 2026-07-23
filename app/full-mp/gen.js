@@ -6,7 +6,7 @@
   const first=n=>String(n||'').trim().split(/\s+/)[0];
   const lastWord=n=>{const p=String(n||'').trim().split(/\s+/);return p[p.length-1]||'';};
   const salutationName=(name,prefix)=>{prefix=String(prefix||'').trim();return prefix?(prefix+' '+lastWord(name)):first(name);};
-  const sigTitle=t=>{t=String(t||'').trim();if(!t)return '';if(/general partner/i.test(t))return t;t=t.replace(/\s+of\s+GP\b/i,'').trim();return t+' of General Partner';};
+  const sigTitle=(t,p)=>{t=String(t||'').trim();p=String(p||'').trim();if(t&&p)return t+' of the '+p;if(!t&&p)return p;if(!t)return '';if(/general partner/i.test(t))return t;t=t.replace(/\s+of\s+GP\b/i,'').trim();return t+' of General Partner';};
 
   function resolve(rec){
     const g=k=>rec[k]!=null?String(rec[k]):'';
@@ -25,7 +25,7 @@
       appr_addr:g('appr.addr_street'), appr_csz:(g('appr.addr_city')+', '+g('appr.addr_state')+' '+g('appr.addr_zip')).replace(/^,\s*/,'').trim(),
       mgmt_addr:m('street'), mgmt_city:m('city'), mgmt_state:m('state'), mgmt_zip:m('zip'),
       sender_name:g('tenant.sender_name'), sender_title:g('tenant.sender_title'),
-      sig_name:g('sig.name'), sig_title:sigTitle(g('sig.title')),
+      sig_name:g('sig.name'), sig_title:sigTitle(g('sig.title'),g('sig.principal')),
     };
   }
 
@@ -279,9 +279,9 @@
     T(174, dr?money(trl):'');
     // Part G principals: row 1 = GP entity (left) + "General Partner" (right); row 2 = signatory + title (left)
     if(g('owner.gp')){ T(206, g('owner.gp')); T(207, 'General Partner'); }
-    if(g('sig.name')) T(208, (g('sig.name')+', '+sigTitle(g('sig.title'))).replace(/, $/,''));
+    if(g('sig.name')) T(208, (g('sig.name')+', '+sigTitle(g('sig.title'),g('sig.principal'))).replace(/, $/,''));
     try{ form.getTextField('x12').setText(''); }catch(e){}
-    T(228,(g('sig.name')+', '+sigTitle(g('sig.title'))).replace(/, $/,''));
+    T(228,(g('sig.name')+', '+sigTitle(g('sig.title'),g('sig.principal'))).replace(/, $/,''));
     try{ form.acroForm.dict.delete(PDFName.of('CO')); }catch(e){}
     form.getFields().forEach(f=>{ try{ f.acroField.dict.delete(PDFName.of('AA')); }catch(e){} });
     for(let q=7;q<=96;q++){ try{ const f=form.getTextField(String(q)); f.setFontSize(9); f.updateAppearances(font); }catch(e){} }

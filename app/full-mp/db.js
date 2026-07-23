@@ -46,6 +46,7 @@ const CROSSWALK = {
   'poc.email': ['owner_poc.email', 'property.owner_poc_email'],
   'sig.name': ['signatory.name', 'property.signatory_name'],
   'sig.title': ['signatory.title', 'property.signatory_title'],
+  'sig.principal': ['signatory.principal', 'property.signatory_principal'],
   'ca.org': ['ca.org', 'property.ca_org'],
   'ca.prefix': ['ca.contact_prefix', 'property.ca_contact_prefix'],
   'ca.name': ['ca.contact_name', 'property.ca_contact_name'],
