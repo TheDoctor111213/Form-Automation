@@ -1499,7 +1499,7 @@ function mgmtCell(){const src=get('tenant.mgmt_source')||'property';const propHa
   const menu='<div class="uamenu"><div class="uaopt" data-mgmt="property">Use property address</div><div class="uaopt" data-mgmt="custom">Different address…</div></div>';
   const ovSrc=srcOf('tenant.mgmt_source')==='overridden';const c=ovSrc?CLR.overridden:CLR[propHas?'database':'new'];
   return '<div class="field"><div class="flabel">Management address</div><div class="fbox mgmtcell" data-box="tenant.mgmt_address" style="background:'+c[1]+';border-left-color:'+c[0]+'"><div class="uadrop"><div class="uatrigger" tabindex="0"><span class="ualab">'+inner+'</span><span class="cvx">▾</span></div>'+menu+'</div>'+(ovSrc?ovIcons('tenant.mgmt_source'):'')+'</div></div>';}
-function renderFieldSection(sec){const cols=[[],[]];sec.fields.forEach(f=>cols[f.col].push(fieldCell(f)));return card(sec.n,sectionPill(sec.n),`<div class="cols${sec.n===4||sec.n===5?' nl':''}"><div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>`);}
+function renderFieldSection(sec){const cols=[[],[]];sec.fields.forEach(f=>cols[f.col].push(fieldCell(f)));return card(sec.n,sectionPill(sec.n),`<div class="cols${sec.n===5?' nl':''}"><div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>`);}
 function principalHasData(i){return ['name','title'].some(s=>{const v=get('principals.'+i+'.'+s);return v!==''&&v!=null;});}
 function renderPrincipals(){
   const rows=PRINCIPALS.map(i=>{const nk='principals.'+i+'.name',tk='principals.'+i+'.title';const nc=CLR[srcOf(nk)]||CLR.new,tc=CLR[srcOf(tk)]||CLR.new;
