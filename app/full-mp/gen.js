@@ -6,7 +6,7 @@
   const first=n=>String(n||'').trim().split(/\s+/)[0];
   const lastWord=n=>{const p=String(n||'').trim().split(/\s+/);return p[p.length-1]||'';};
   const salutationName=(name,prefix)=>{prefix=String(prefix||'').trim();return prefix?(prefix+' '+lastWord(name)):first(name);};
-  const sigTitle=(t,p)=>{t=String(t||'').trim();p=String(p||'').trim();if(t&&p)return t+' of the '+p;if(!t&&p)return p;if(!t)return '';if(/general partner/i.test(t))return t;t=t.replace(/\s+of\s+GP\b/i,'').trim();return t+' of General Partner';};
+  const sigTitle=(t,p)=>{t=String(t||'').trim();p=String(p||'').trim();if(t&&p)return t+' of the '+p;return t||p||'';};
 
   function resolve(rec){
     const g=k=>rec[k]!=null?String(rec[k]):'';

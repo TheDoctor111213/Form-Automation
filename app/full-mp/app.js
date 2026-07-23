@@ -4,7 +4,7 @@ const BR_OPTS=['Studio','1BR','2BR','3BR','4BR','5BR']; const BA_OPTS=['1BA','1.
 const ENTITY_TYPES=['Individual','Corporation','General Partnership','Limited Partnership','Joint Tenancy/Tenants in Common','Trust','Other (specify)'];
 const FIELD_SECTIONS=[
   {n:2,title:'Property',fields:[{k:'property.name',label:'Property name',col:0},{k:'property.addr',label:'Address',col:0,type:'addr'},{type:'pair',col:0,items:[{k:'property.s8',label:'Section 8 #'},{k:'property.fha',label:'FHA #'}]},{k:'owner.entity_name',label:'Ownership entity',col:1},{k:'owner.entity_type',label:'Entity type',col:1,type:'select',opts:ENTITY_TYPES}]},
-  {n:3,title:'Point of contact & signatory',fields:[{k:'poc.name',label:'Point of contact',col:0},{k:'poc.email',label:'Email',col:0},{k:'poc.phone',label:'Phone',col:0,type:'phone'},{k:'owner.gp',label:'General Partner',col:1},{k:'sig.name',label:'Signatory',col:1},{k:'sig.title',label:'Signatory title',col:1,type:'sigtitle'}]},
+  {n:3,title:'Point of contact & signatory',fields:[{k:'poc.name',label:'Point of contact',col:0},{k:'poc.email',label:'Email',col:0},{k:'poc.phone',label:'Phone',col:0,type:'phone'},{k:'sig.name',label:'Signatory',col:1},{k:'sig.title',label:'Signatory title',col:1,type:'sigtitle'}]},
   {n:4,title:'Contract administrator',fields:[{k:'ca.name',label:'Name',col:0,prefix:'ca.prefix'},{k:'ca.position',label:'Position',col:0},{k:'ca.org',label:'CA organization',col:1},{k:'ca.addr',label:'CA address',col:1,type:'caaddr'}]},
   {n:5,title:'Appraiser',fields:[{k:'appr.name',label:'Appraiser name',col:0},{k:'appr.firm',label:'Appraisal company',col:0},{k:'appr.addr',label:'Appraiser address',col:0,type:'appraddr'},{k:'appr.email',label:'Email',col:1},{k:'appr.phone',label:'Phone',col:1,type:'phone'}]},
   {n:9,title:'Tenant notice',fields:[{k:'tenant.sender_name',label:'Sender — name',col:0},{k:'tenant.sender_title',label:'Sender — title',col:0},{k:'tenant.mgmt_address',label:'Management address',col:1,type:'mgmtaddr'},{k:'tenant.property_alias',label:'Property name (as known to tenants)',col:1}]},
@@ -24,7 +24,7 @@ const SEED={ // key manifest only — the VALUES are never read (ALL_KEYS below 
   'property.name':['',D],'property.addr_street':['',D],'property.addr_city':['',D],'property.addr_state':['',D],'property.addr_zip':['',D],'property.fha':['',D],'property.s8':['',D],
   'owner.entity_name':['',D],'owner.entity_type':['',D],'owner.entity_type_other':['',D],
   'poc.name':['',D],'poc.email':['',D],'poc.phone':['',D],
-  'owner.gp':['',D],'sig.name':['',D],'sig.title':['',D],'sig.principal':['',D],'principals.0.name':['',D],'principals.0.title':['',D],
+  'sig.name':['',D],'sig.title':['',D],'sig.principal':['',D],'principals.0.name':['',D],'principals.0.title':['',D],
   'ca.org':['',D],'ca.prefix':['',D],'ca.name':['',D],'ca.position':['',D],
   'ca.addr_street':['',D],'ca.addr_city':['',D],'ca.addr_state':['',D],'ca.addr_zip':['',D],
   'appr.firm':['',T],'appr.name':['',T],'appr.email':['',T],'appr.phone':['',T],'appr.addr_street':['',T],'appr.addr_city':['',T],'appr.addr_state':['',T],'appr.addr_zip':['',T],
@@ -187,7 +187,6 @@ const SRCPICK_ROWS={
  'property.s8':()=>[{tag:'Executed RS',val:null},{tag:'RCS report',val:null}],
  'owner.entity_type_other':()=>[{tag:'Executed RS',val:null}],
  'owner.entity_name':()=>[{tag:'Executed RS',val:null},{tag:'Related Affordable',val:raVal('owner.entity_name')}],
- 'owner.gp':()=>[{tag:'Executed RS',val:null}],
  'sig.title':()=>[{tag:'Executed RS',val:null}],
  'appr.firm':()=>[{tag:'RCS report',val:null}],
  'appr.email':()=>[{tag:'RCS report',val:null}],
@@ -209,7 +208,7 @@ const DIR_SRCROW={'appr.name':'RCS report','sig.name':'Executed RS'};
 function moneySrcTag(k){if(/^units\.\d+\.current$/.test(k))return 'Executed RS';if(/^units\.\d+\.proposed$/.test(k))return 'RCS report';if(/^nonrev\.\d+\.rent$/.test(k))return 'Executed RS';return null;}
 function dimPick(tag){return '<div class="uadrop pocpick"><div class="uatrigger" tabindex="0" title="Source"><span class="cvx">&#9662;</span></div><div class="uamenu"><div class="uaopt srcdim">\u2014<span class="uasub">'+esc(tag)+' \u00b7 not available</span></div></div></div>';}
 /* ================== end external-source dropdowns ================== */
-function sigPrincipalOpts(){const o=[];PRINCIPALS.forEach(i=>{const t=(get('principals.'+i+'.title')||'').trim(),n=(get('principals.'+i+'.name')||'').trim();const v=t||n;if(v&&o.indexOf(v)<0)o.push(v);});if(!o.length){const gp=(get('owner.gp')||'').trim();if(gp)o.push(gp);}return o;}
+function sigPrincipalOpts(){const o=[];PRINCIPALS.forEach(i=>{const t=(get('principals.'+i+'.title')||'').trim(),n=(get('principals.'+i+'.name')||'').trim();const v=t||n;if(v&&o.indexOf(v)<0)o.push(v);});return o;}
 function sigTitleCell(f){const c=CLR[srcOf('sig.title')]||CLR.new;const pk='sig.principal';const pc=CLR[srcOf(pk)]||CLR.new;
   const dim='<div class="uaopt srcdim">\u2014<span class="uasub">Executed RS \u00b7 not available</span></div>';
   let dd=csDrop(pk,sigPrincipalOpts(),'Select\u2026','',true);
