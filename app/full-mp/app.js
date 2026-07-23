@@ -231,7 +231,7 @@ function selectCell(f){const c=CLR[srcOf(f.k)]||CLR.new;let dd=csDrop(f.k,f.opts
     dd=dd.replace('<div class="uamenu">','<div class="uamenu">'+navRows);}
   const sel=`<div class="field"><div class="flabel">${f.label}</div><div class="fbox seldrop" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${dd}</div>${ovNote(f.k)}</div>`;
   if(f.k==='owner.entity_type'&&get(f.k)==='Other (specify)'){const ok='owner.entity_type_other';const oc=CLR[srcOf(ok)]||CLR.new;
-    const other=`<div class="field"><div class="flabel">Specify entity type</div><div class="fbox" data-box="${ok}" style="background:${oc[1]};border-left-color:${oc[0]}"><input type="text" data-k="${ok}" value="${esc(get(ok))}" autocomplete="off">${srcPick(ok,SRCPICK_ROWS[ok]())}</div>${ovNote(ok)}</div>`;
+    const other=`<div class="field"><div class="flabel">Specify entity type</div><div class="fbox" data-box="${ok}" style="background:${oc[1]};border-left-color:${oc[0]}"><input type="text" data-k="${ok}" value="${esc(get(ok))}" placeholder="Limited Liability Company" autocomplete="off">${srcPick(ok,SRCPICK_ROWS[ok]())}</div>${ovNote(ok)}</div>`;
     return '<div class="fpair etpair">'+sel+other+'</div>';}
   return sel;}
 function compAddrCell(keys,box,label){const a=baseSrc(keys);const c=CLR[a]||CLR.new;const ti=k=>partHot(k)?(';'+tintStyle(k)):'';

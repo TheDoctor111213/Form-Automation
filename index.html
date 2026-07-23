@@ -43,7 +43,7 @@ body.scrolled #ccbar{transform:translateY(0);opacity:1}
 .ctitle{font-size:15px;font-weight:700} .chev{margin-left:8px;color:#aab3c2;transition:transform .15s} .card.collapsed .chev{transform:rotate(-90deg)}
 .pill{margin-left:auto;font-size:11.5px;font-weight:700;padding:4px 12px;border-radius:20px} .pill.ok{background:#dcfce7;color:#166534} .pill.warn{background:#fdf0df;color:#b45309} .pill.neutral{background:#e7f3f1;color:#0f766e}
 .cbody{padding:16px} .cols{display:grid;grid-template-columns:1fr 1fr;gap:13px 24px}
-.field{margin-bottom:2px} .fpair{display:flex;gap:10px} .fpair>.field{flex:1 1 0;min-width:0} .etpair>.field:first-child{flex:0 1 38%} .sigpair>.field{flex:1 1 0} .sigpair .ofthe{flex:0 0 auto;align-self:flex-end;padding:0 1px 10px;font-size:12px;font-weight:600;color:#5b6577} .flabel{font-size:11px;color:#5b6577;margin-bottom:4px;font-weight:600}
+.field{margin-bottom:2px} .fpair{display:flex;gap:10px} .fpair>.field{flex:1 1 0;min-width:0} .etpair>.field:first-child{flex:0 1 38%} [data-k="owner.entity_type_other"]::placeholder{color:#c9d1de;opacity:1} .sigpair>.field{flex:1 1 0} .sigpair .ofthe{flex:0 0 auto;align-self:flex-end;padding:0 1px 10px;font-size:12px;font-weight:600;color:#5b6577} .flabel{font-size:11px;color:#5b6577;margin-bottom:4px;font-weight:600}
 .fbox{display:flex;align-items:center;border:1px solid #e6ebf3;border-left:4px solid #64748b;border-radius:8px;background:#f6f7f9;overflow:visible;min-height:38px}
 .fbox input{flex:1;border:none;background:transparent;font:inherit;font-size:14px;padding:9px 11px;outline:none;color:#1f2937;min-width:0}
 .fbox .pfx{border:none;background:rgba(0,0,0,.03);font:inherit;color:#33405c;padding:9px 6px;border-right:1px solid #e0e5ee;outline:none}
@@ -1470,7 +1470,7 @@ function selectCell(f){const c=CLR[srcOf(f.k)]||CLR.new;let dd=csDrop(f.k,f.opts
     dd=dd.replace('<div class="uamenu">','<div class="uamenu">'+navRows);}
   const sel=`<div class="field"><div class="flabel">${f.label}</div><div class="fbox seldrop" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${dd}</div>${ovNote(f.k)}</div>`;
   if(f.k==='owner.entity_type'&&get(f.k)==='Other (specify)'){const ok='owner.entity_type_other';const oc=CLR[srcOf(ok)]||CLR.new;
-    const other=`<div class="field"><div class="flabel">Specify entity type</div><div class="fbox" data-box="${ok}" style="background:${oc[1]};border-left-color:${oc[0]}"><input type="text" data-k="${ok}" value="${esc(get(ok))}" autocomplete="off">${srcPick(ok,SRCPICK_ROWS[ok]())}</div>${ovNote(ok)}</div>`;
+    const other=`<div class="field"><div class="flabel">Specify entity type</div><div class="fbox" data-box="${ok}" style="background:${oc[1]};border-left-color:${oc[0]}"><input type="text" data-k="${ok}" value="${esc(get(ok))}" placeholder="Limited Liability Company" autocomplete="off">${srcPick(ok,SRCPICK_ROWS[ok]())}</div>${ovNote(ok)}</div>`;
     return '<div class="fpair etpair">'+sel+other+'</div>';}
   return sel;}
 function compAddrCell(keys,box,label){const a=baseSrc(keys);const c=CLR[a]||CLR.new;const ti=k=>partHot(k)?(';'+tintStyle(k)):'';
