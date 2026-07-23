@@ -3,7 +3,7 @@ const STATES='AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA 
 const BR_OPTS=['Studio','1BR','2BR','3BR','4BR','5BR']; const BA_OPTS=['1BA','1.5BA','2BA','2.5BA','3BA'];
 const ENTITY_TYPES=['Individual','Corporation','General Partnership','Limited Partnership','Joint Tenancy/Tenants in Common','Trust','Other (specify)'];
 const FIELD_SECTIONS=[
-  {n:2,title:'Property',fields:[{k:'property.name',label:'Property name',col:0},{k:'property.addr',label:'Address',col:0,type:'addr'},{type:'pair',col:0,items:[{k:'property.fha',label:'FHA #'},{k:'property.s8',label:'Section 8 #'}]},{k:'owner.entity_name',label:'Ownership entity',col:1},{k:'owner.entity_type',label:'Entity type',col:1,type:'select',opts:ENTITY_TYPES}]},
+  {n:2,title:'Property',fields:[{k:'property.name',label:'Property name',col:0},{k:'property.addr',label:'Address',col:0,type:'addr'},{type:'pair',col:0,items:[{k:'property.s8',label:'Section 8 #'},{k:'property.fha',label:'FHA #'}]},{k:'owner.entity_name',label:'Ownership entity',col:1},{k:'owner.entity_type',label:'Entity type',col:1,type:'select',opts:ENTITY_TYPES}]},
   {n:3,title:'Point of contact & signatory',fields:[{k:'poc.name',label:'Point of contact',col:0},{k:'poc.email',label:'Email',col:0},{k:'poc.phone',label:'Phone',col:0,type:'phone'},{k:'owner.gp',label:'General Partner',col:1},{k:'sig.name',label:'Signatory',col:1},{k:'sig.title',label:'Signatory title',col:1}]},
   {n:4,title:'Contract administrator',fields:[{k:'ca.name',label:'Name',col:0,prefix:'ca.prefix'},{k:'ca.position',label:'Position',col:0},{k:'ca.org',label:'CA organization',col:1},{k:'ca.addr',label:'CA address',col:1,type:'caaddr'}]},
   {n:5,title:'Appraiser',fields:[{k:'appr.name',label:'Appraiser name',col:0},{k:'appr.firm',label:'Appraisal company',col:0},{k:'appr.addr',label:'Appraiser address',col:0,type:'appraddr'},{k:'appr.email',label:'Email',col:1},{k:'appr.phone',label:'Phone',col:1,type:'phone'}]},
@@ -22,7 +22,7 @@ const UAF_UTILS=[['oil','Oil'],['gas','Natural Gas'],['electric','Electric'],['w
 const D='database',T='this-cycle',O='overridden';
 const SEED={ // key manifest only — the VALUES are never read (ALL_KEYS below feeds the store), so no sample data ships in the public bundle
   'property.name':['',D],'property.addr_street':['',D],'property.addr_city':['',D],'property.addr_state':['',D],'property.addr_zip':['',D],'property.fha':['',D],'property.s8':['',D],
-  'owner.entity_name':['',D],'owner.entity_type':['',D],
+  'owner.entity_name':['',D],'owner.entity_type':['',D],'owner.entity_type_other':['',D],
   'poc.name':['',D],'poc.email':['',D],'poc.phone':['',D],
   'owner.gp':['',D],'sig.name':['',D],'sig.title':['',D],
   'ca.org':['',D],'ca.prefix':['',D],'ca.name':['',D],'ca.position':['',D],
@@ -185,6 +185,7 @@ const SRCPICK_ROWS={
  'property.name':()=>[{tag:'Related Affordable',val:raVal('property.name')},{tag:'RCS report',val:null}],
  'property.fha':()=>[{tag:'Executed RS',val:null},{tag:'Related Affordable',val:raVal('property.fha')}],
  'property.s8':()=>[{tag:'Executed RS',val:null},{tag:'RCS report',val:null}],
+ 'owner.entity_type_other':()=>[{tag:'Executed RS',val:null}],
  'owner.entity_name':()=>[{tag:'Executed RS',val:null},{tag:'Related Affordable',val:raVal('owner.entity_name')}],
  'owner.gp':()=>[{tag:'Executed RS',val:null}],
  'sig.title':()=>[{tag:'Executed RS',val:null}],
@@ -222,7 +223,11 @@ function selectCell(f){const c=CLR[srcOf(f.k)]||CLR.new;let dd=csDrop(f.k,f.opts
       +(nv?'<div class="uaopt" data-cskey="owner.entity_type" data-csopt="'+esc(nv)+'">'+esc(nv)+'<span class="uasub">Related Affordable</span></div>'
           :'<div class="uaopt srcdim">\u2014<span class="uasub">Related Affordable \u00b7 not available</span></div>');
     dd=dd.replace('<div class="uamenu">','<div class="uamenu">'+navRows);}
-  return `<div class="field"><div class="flabel">${f.label}</div><div class="fbox seldrop" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${dd}</div>${ovNote(f.k)}</div>`;}
+  const sel=`<div class="field"><div class="flabel">${f.label}</div><div class="fbox seldrop" data-box="${f.k}" style="background:${c[1]};border-left-color:${c[0]}">${dd}</div>${ovNote(f.k)}</div>`;
+  if(f.k==='owner.entity_type'&&get(f.k)==='Other (specify)'){const ok='owner.entity_type_other';const oc=CLR[srcOf(ok)]||CLR.new;
+    const other=`<div class="field"><div class="flabel">Specify entity type</div><div class="fbox" data-box="${ok}" style="background:${oc[1]};border-left-color:${oc[0]}"><input type="text" data-k="${ok}" value="${esc(get(ok))}" placeholder="Limited Liability Company" autocomplete="off">${srcPick(ok,SRCPICK_ROWS[ok]())}</div>${ovNote(ok)}</div>`;
+    return '<div class="fpair">'+sel+other+'</div>';}
+  return sel;}
 function compAddrCell(keys,box,label){const a=baseSrc(keys);const c=CLR[a]||CLR.new;const ti=k=>partHot(k)?(';'+tintStyle(k)):'';
   return `<div class="field"><div class="flabel">${label}</div><div class="fbox addr" data-box="${box}" style="background:${c[1]};border-left-color:${c[0]}">
      <input type="text" data-k="${keys[0]}" value="${esc(get(keys[0]))}" placeholder="Street" style="flex:2.2${ti(keys[0])}"><span class="adiv"></span>

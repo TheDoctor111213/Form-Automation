@@ -272,6 +272,7 @@
     T(197,g('owner.entity_name'));
     const et={'Individual':198,'Corporation':199,'General Partnership':200,'Limited Partnership':201,'Joint Tenancy/Tenants in Common':202,'Trust':203};
     if(et[g('owner.entity_type')]) C(et[g('owner.entity_type')]);
+    if(g('owner.entity_type')==='Other (specify)'){ C(204); T(205,g('owner.entity_type_other')); }
     const nrIdx=[...new Set(Object.keys(rec).map(k=>(k.match(/^nonrev\.(\d+)\./)||[])[1]).filter(x=>x!=null))].sort((a,b)=>a-b);
     const dUse=[159,162,165,168,171],dType=[160,163,166,169,172],dRent=[161,164,167,170,173]; let dr=0,trl=0;
     nrIdx.forEach(i=>{ if(dr>4)return; const use=g('nonrev.'+i+'.use'),br=g('nonrev.'+i+'.br'),ba=g('nonrev.'+i+'.ba'),rent=g('nonrev.'+i+'.rent'); if(!(use||br||ba||rent||nmv(g('nonrev.'+i+'.num_units'))))return; T(dUse[dr],use); T(dType[dr],(String(br).replace(/(\d+)\s*BR/i,'$1 BR')+(ba?'/'+ba:'')).replace(/^\//,'')); T(dRent[dr],(rent!==''&&rent!=null)?money(rent):''); trl+=nmv(rent); dr++; });

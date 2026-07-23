@@ -39,6 +39,7 @@ const CROSSWALK = {
   'property.s8': ['property.fha_section8_no', 'property.fha_section8_no'],
   'owner.entity_name': ['owner.entity_name', 'property.entity_name'],
   'owner.entity_type': ['owner.entity_type', 'property.entity_type'],
+  'owner.entity_type_other': ['owner.entity_type_other', 'property.entity_type_other'],
   'owner.gp': ['owner.general_partner', 'property.general_partner'],
   'poc.name': ['owner_poc.name', 'property.owner_poc_name'],
   'poc.phone': ['owner_poc.phone', 'property.owner_poc_phone'],
