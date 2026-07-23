@@ -1327,7 +1327,7 @@ function ovIcons(kk){const keys=Array.isArray(kk)?kk:[kk];const j=keys.join(',')
 function cycleProgs(){if(activeCid&&mpdb){const cy=mpdb.listCycles(activePid).find(c=>c.id===activeCid);if(cy&&cy.programs.length)return cy.programs;}return ['rcs'];}
 function hasProg(p){return cycleProgs().indexOf(p)>=0;}
 function visibleSections(){const pr=cycleProgs();const has=p=>pr.indexOf(p)>=0;
-  if(has('rcs'))return [1,2,12,3,4,5,6,7,8,9];                 // the classic RCS flow
+  if(has('rcs'))return has('uaf')?[1,2,12,3,4,5,6,11,7,8,9]:[1,2,12,3,4,5,6,7,8,9]; // RCS+UAF shows the UAF section after rents                 // the classic RCS flow
   if(has('ocaf')&&has('uaf'))return [1,2,12,3,4,6,10,11,7,9];  // rents -> worksheet -> UA -> Part B -> tenant notice
   if(has('ocaf'))return [1,2,12,3,4,6,10,7];
   return [1,2,12,3,4,6,11,7,9];                                // UAF-only
