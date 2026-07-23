@@ -1296,7 +1296,7 @@ const ALL_KEYS=Object.keys(SEED).map(k=>({key:k}));
 let mpdb=null, activePid=null, activeCid=null, _cyFresh=null;
 const bridge={getDb:async()=>mpdb?(activeCid?mpdb.getFlatCycle(activeCid):mpdb.getFlat(activePid)):{},saveDb:async(m)=>{_cyFresh=null;return activeCid?mpdb.saveFlatCycle(activeCid,m):mpdb.saveFlat(activePid,m);},clearDb:async()=>{}};
 const store=makeStore(bridge,ALL_KEYS);
-let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let NS8=[]; let PRINCIPALS=[0]; let _undoStack=[]; let _undoNR=[]; let _undoLI=[]; let _pending=null,_refocusSel=null,_pendingSnap=null; let _rcsUpload=null;
+let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let NS8=[]; let PRINCIPALS=[0]; let _undoStack=[]; let _undoNR=[]; let _undoLI=[]; let _undoPR=[]; let _pending=null,_refocusSel=null,_pendingSnap=null; let _rcsUpload=null;
 
 const CLR={database:['#2563eb','#e8f0fe','On file'],'this-cycle':['#0f766e','#e9f5f2','API / this package'],overridden:['#b45309','#fbf1e6','Overridden'],'auto-calculated':['#2563eb','#e8f0fe','Auto-calc'],'new':['#64748b','#f6f7f9','New']};
 const TODAY=new Date().toISOString().slice(0,10);
@@ -1503,7 +1503,7 @@ function principalHasData(i){return ['name','title'].some(s=>{const v=get('princ
 function renderPrincipals(){
   const rows=PRINCIPALS.map(i=>{const nk='principals.'+i+'.name',tk='principals.'+i+'.title';const nc=CLR[srcOf(nk)]||CLR.new,tc=CLR[srcOf(tk)]||CLR.new;
     return `<div class="prinrow"><div class="field"><div class="fbox" data-box="${nk}" style="background:${nc[1]};border-left-color:${nc[0]}"><input type="text" data-k="${nk}" value="${esc(get(nk))}" autocomplete="off"></div>${ovNote(nk)}</div><div class="field"><div class="fbox" data-box="${tk}" style="background:${tc[1]};border-left-color:${tc[0]}"><input type="text" data-k="${tk}" value="${esc(get(tk))}" autocomplete="off"></div>${ovNote(tk)}</div><div class="urx">${PRINCIPALS.length>1?`<button class="trash" data-delprin="${i}" title="Delete">\u2715</button>`:''}</div></div>`;}).join('');
-  return card(12,sectionPill(12),`<div class="pbnote">The principals comprising the ownership entity, as they appear in Part G of the rent schedule. The signatory title in ${secRef(3)} selects its principal from this list.</div><div class="prinhead"><span>Principal name</span><span>Title</span><span></span></div>${rows}<div class="addrow" id="prinAdd">+ Add principal</div>`);}
+  return card(12,sectionPill(12),`<div class="pbnote">The principals comprising the ownership entity, as they appear in Part G of the rent schedule. The signatory title in ${secRef(3)} selects its principal from this list.</div><div class="prinhead"><span>Principal name</span><span>Title</span><span></span></div>${rows}<div class="addrow" id="prinAdd">+ Add principal</div>${_undoPR.length?(' <span class="addrow ghostlink" id="undoPrin">\u21a9 Undo delete'+(_undoPR.length>1?(' ('+_undoPR.length+')'):'')+'</span><button class="undocommit" id="undoPrinC" title="Keep deletions \u2014 dismiss undo">\u2713</button>'):''}`);}
 
 function boxColor(k){return CLR[srcOf(k)]||CLR.new;}
 function moneyBox(k){const c=boxColor(k);const _mt=moneySrcTag(k);return `<div class="rbox money" data-box="${k}" style="background:${c[1]};border-left-color:${c[0]}"><span class="cur">$</span><input type="text" data-money="1" data-k="${k}" value="${esc(fmtMoney(get(k)))}">${_mt?dimPick(_mt):''}${ovIcons(k)}</div>`;}
@@ -2038,8 +2038,8 @@ function wireBody(){
   document.querySelectorAll('[data-delns8]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delns8');const hadData=ns8HasData(i)||numf(get('ns8.'+i+'.num_units'))>0;const snap={};Object.keys(form).forEach(k=>{if(k.indexOf('ns8.'+i+'.')===0){snap[k]=form[k];delete form[k];}});NS8=NS8.filter(x=>x!==i);const flagCell=form['ns8.enabled'];if(!NS8.length)form=store.editForm(form,'ns8.enabled','');if(hadData){_undoLI.push({i,snap,flag:flagCell});renderBody();setStatus('Non-Section 8 unit type deleted — undo available below.');}else{renderBody();setStatus(NS8.length?'Empty non-Section 8 unit type removed.':'Last non-Section 8 unit type removed — section turned off.');}}));
   const add=el('addUnit');if(add)add.onclick=()=>{_undoStack=[];const nx=(UNITS.length?Math.max.apply(null,UNITS):-1)+1;form=store.editForm(form,'units.'+nx+'.br','');UNITS.push(nx);renderBody();setStatus('');};
   const addn=el('addNonrev');if(addn)addn.onclick=()=>{_undoNR=[];NONREV.push(NONREV.length?Math.max.apply(null,NONREV)+1:0);renderBody();setStatus('');};
-  document.querySelectorAll('[data-delprin]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delprin');Object.keys(form).forEach(k=>{if(k.indexOf('principals.'+i+'.')===0)delete form[k];});PRINCIPALS=PRINCIPALS.filter(x=>x!==i);if(!PRINCIPALS.length)PRINCIPALS=[0];renderBody();setStatus('Principal removed.');}));
-  const pa=el('prinAdd');if(pa)pa.onclick=()=>{PRINCIPALS.push((PRINCIPALS.length?Math.max.apply(null,PRINCIPALS):-1)+1);renderBody();setStatus('');};
+  document.querySelectorAll('[data-delprin]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delprin');const hadData=principalHasData(i);const snap={};Object.keys(form).forEach(k=>{if(k.indexOf('principals.'+i+'.')===0){snap[k]=form[k];delete form[k];}});PRINCIPALS=PRINCIPALS.filter(x=>x!==i);if(!PRINCIPALS.length)PRINCIPALS=[0];if(hadData){_undoPR.push({i,snap});renderBody();setStatus('Principal deleted \u2014 undo available below.');}else{renderBody();setStatus('Empty principal row removed.');}}));
+  const pa=el('prinAdd');if(pa)pa.onclick=()=>{_undoPR=[];PRINCIPALS.push((PRINCIPALS.length?Math.max.apply(null,PRINCIPALS):-1)+1);renderBody();setStatus('');};
   const nt=el('nonrevToggle');if(nt)nt.onchange=()=>{if(!nt.checked&&NONREV.length){nt.checked=true;setStatus('Delete the non-revenue rows first to turn this section off.');return;}form=store.editForm(form,'nonrev.enabled',nt.checked?'1':'');if(nt.checked&&!NONREV.length){_undoNR=[];NONREV=[0];}renderBody();setStatus('');};
   const lt=el('ns8Toggle');if(lt)lt.onchange=()=>{
     if(!lt.checked&&NS8.some(i=>numf(get('ns8.'+i+'.num_units'))>0)){lt.checked=true;setStatus('Delete the non-Section 8 rows first to turn this section off.');return;}
@@ -2059,6 +2059,8 @@ function wireBody(){
       _rcsUpload={name:f.name,bytes:b};rf.value='';renderBody();setStatus('RCS report uploaded \u2014 it goes in as document 04 when you generate the package.');});};
   const uu=el('undoUnit');if(uu)uu.onclick=()=>{if(!_undoStack.length)return;const e=_undoStack.pop();Object.keys(e.snap).forEach(k=>{form[k]=e.snap[k];});if(UNITS.indexOf(e.i)<0)UNITS.push(e.i);UNITS.sort((a,b)=>a-b);renderBody();setStatus('Unit type restored.');};
   const uc=el('undoCommit');if(uc)uc.onclick=()=>{_undoStack=[];renderBody();setStatus('Deletions kept.');};
+  const up=el('undoPrin');if(up)up.onclick=()=>{if(!_undoPR.length)return;const e=_undoPR.pop();Object.keys(e.snap).forEach(k=>{form[k]=e.snap[k];});if(PRINCIPALS.indexOf(e.i)<0)PRINCIPALS.push(e.i);PRINCIPALS.sort((a,b)=>a-b);renderBody();setStatus('Principal restored.');};
+  const upc=el('undoPrinC');if(upc)upc.onclick=()=>{_undoPR=[];renderBody();setStatus('Deletions kept.');};
   const un=el('undoNonrev');if(un)un.onclick=()=>{if(!_undoNR.length)return;const e=_undoNR.pop();Object.keys(e.snap).forEach(k=>{form[k]=e.snap[k];});if(e.flag)form['nonrev.enabled']=e.flag;else form=store.editForm(form,'nonrev.enabled','1');if(NONREV.indexOf(e.i)<0)NONREV.push(e.i);NONREV.sort((a,b)=>a-b);renderBody();setStatus('Non-revenue unit restored.');};
   const unc=el('undoNonrevC');if(unc)unc.onclick=()=>{_undoNR=[];renderBody();setStatus('Deletions kept.');};
   const ul=el('undoNs8');if(ul)ul.onclick=()=>{if(!_undoLI.length)return;const e=_undoLI.pop();Object.keys(e.snap).forEach(k=>{form[k]=e.snap[k];});if(e.flag)form['ns8.enabled']=e.flag;else form=store.editForm(form,'ns8.enabled','1');if(NS8.indexOf(e.i)<0)NS8.push(e.i);NS8.sort((a,b)=>a-b);renderBody();setStatus('Non-Section 8 unit type restored.');};
@@ -2252,7 +2254,7 @@ async function openCycleForm(cid){
   activeCid=cid;_cyFresh=null;
   const cy=mpdb.listCycles(activePid).find(c=>c.id===cid);
   activeProgram=cy?cy.programs.map(x=>PROG_NAMES[x]||x).join(' + '):'RCS';
-  _undoStack=[];_undoNR=[];_undoLI=[];_rcsUpload=null;
+  _undoStack=[];_undoNR=[];_undoLI=[];_undoPR=[];_rcsUpload=null;
   await mpdb.setActive(activePid);await refreshSnap();form=await store.fillForm();
   fixSavedToggles();applyChecklistDefaults();deriveUnits();renderFormHeader();renderBody();
   show('Form');window.scrollTo(0,0);
@@ -2359,7 +2361,7 @@ function requestSave(afterSave){
 // New-property checklist default: all §8 boxes on except Scope of repair(2) & Scope of work(4),
 // applied as source 'new' (grey/unsaved) only when the property has never saved a checklist.
 function applyChecklistDefaults(){if(Object.keys(DBSNAP).some(k=>/^check\.\d+$/.test(k)))return;for(let i=0;i<17;i++)form=store.editForm(form,'check.'+i,(i===2||i===4)?'':'1');}
-async function openForm(program){activeProgram=program||'RCS';_undoStack=[];_undoNR=[];_undoLI=[];_rcsUpload=null;await mpdb.setActive(activePid);await refreshSnap();form=await store.fillForm();fixSavedToggles();applyChecklistDefaults();deriveUnits();renderFormHeader();renderBody();show('Form');window.scrollTo(0,0);ensureHudSafmr({});}
+async function openForm(program){activeProgram=program||'RCS';_undoStack=[];_undoNR=[];_undoLI=[];_undoPR=[];_rcsUpload=null;await mpdb.setActive(activePid);await refreshSnap();form=await store.fillForm();fixSavedToggles();applyChecklistDefaults();deriveUnits();renderFormHeader();renderBody();show('Form');window.scrollTo(0,0);ensureHudSafmr({});}
 function renderFormHeader(){
   if(el('hdrProp'))el('hdrProp').textContent=(get('property.name')||'(unnamed property)');
   if(el('hdrProgram'))el('hdrProgram').textContent=activeProgram+' Package';
