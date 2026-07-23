@@ -205,15 +205,16 @@ function makeCosmosDb() {
         for (const k in form) place(p, k, (form[k] && form[k].value != null ? form[k].value : ''), today());
         touch(pid); return pushSoon(pid);
       },
-      pruneUnitRows(pid, keepU, keepNR, keepLI) {
+      pruneUnitRows(pid, keepU, keepNR, keepLI, keepP) {
         const p = D.props[pid]; if (!p) return Promise.resolve();
-        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String));
+        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String)), kp = new Set((keepP || []).map(String));
         const uidx = k => { const r = k.slice(6); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         const nidx = k => { const r = k.slice(7); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         [p.durable, p.percycle].forEach(b => Object.keys(b).forEach(k => {
           if (k.indexOf('units.') === 0) { const i = uidx(k); if (i !== null && !ku.has(i)) delete b[k]; }
           else if (k.indexOf('nonrev.') === 0) { const i = nidx(k); if (i !== null && !kn.has(i)) delete b[k]; }
           else if (k.indexOf('ns8.') === 0) { const i = uidx(k); if (i !== null && !kl.has(i)) delete b[k]; }
+          else if (keepP && k.indexOf('principals.') === 0) { const r = k.slice(11), d = r.indexOf('.'), i = d > 0 ? r.slice(0, d) : null; if (i !== null && !kp.has(i)) delete b[k]; }
         }));
         touch(pid); return pushSoon(pid);
       },

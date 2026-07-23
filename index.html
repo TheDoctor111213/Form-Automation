@@ -43,7 +43,7 @@ body.scrolled #ccbar{transform:translateY(0);opacity:1}
 .ctitle{font-size:15px;font-weight:700} .chev{margin-left:8px;color:#aab3c2;transition:transform .15s} .card.collapsed .chev{transform:rotate(-90deg)}
 .pill{margin-left:auto;font-size:11.5px;font-weight:700;padding:4px 12px;border-radius:20px} .pill.ok{background:#dcfce7;color:#166534} .pill.warn{background:#fdf0df;color:#b45309} .pill.neutral{background:#e7f3f1;color:#0f766e}
 .cbody{padding:16px} .cols{display:grid;grid-template-columns:1fr 1fr;gap:13px 24px}
-.field{margin-bottom:2px} .fpair{display:flex;gap:10px} .fpair>.field{flex:1 1 0;min-width:0} .etpair>.field:first-child{flex:0 1 38%} [data-k="owner.entity_type_other"]::placeholder{color:#c9d1de;opacity:1} .sigpair>.field{flex:1 1 0} .sigpair .ofthe{flex:0 0 auto;align-self:flex-end;padding:0 1px 10px;font-size:12px;font-weight:600;color:#5b6577} .flabel{font-size:11px;color:#5b6577;margin-bottom:4px;font-weight:600}
+.field{margin-bottom:2px} .fpair{display:flex;gap:10px} .fpair>.field{flex:1 1 0;min-width:0} .etpair>.field:first-child{flex:0 1 38%} [data-k="owner.entity_type_other"]::placeholder{color:#c9d1de;opacity:1} .sigpair>.field{flex:1 1 0} .sigpair .ofthe{flex:0 0 auto;align-self:flex-start;padding:28px 1px 0;font-size:12px;font-weight:600;color:#5b6577} .prow{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px} .prow .field{flex:1 1 0;min-width:0;margin-bottom:0} .prow .urx{flex:0 0 22px;padding-top:8px} .prhead{display:flex;gap:12px;font-size:11px;color:#5b6577;font-weight:600;margin:8px 0 4px} .prhead span{flex:1 1 0} .prhead span:last-child{flex:0 0 22px} .flabel{font-size:11px;color:#5b6577;margin-bottom:4px;font-weight:600}
 .fbox{display:flex;align-items:center;border:1px solid #e6ebf3;border-left:4px solid #64748b;border-radius:8px;background:#f6f7f9;overflow:visible;min-height:38px}
 .fbox input{flex:1;border:none;background:transparent;font:inherit;font-size:14px;padding:9px 11px;outline:none;color:#1f2937;min-width:0}
 .fbox .pfx{border:none;background:rgba(0,0,0,.03);font:inherit;color:#33405c;padding:9px 6px;border-right:1px solid #e0e5ee;outline:none}
@@ -95,8 +95,8 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;borde
 .cycbox .addrow{margin-top:9px}
 .mgempty{background:#fff;border:1px dashed #cbd5e1;border-radius:11px;padding:26px;text-align:center;color:#6b7280}
 .ucards{display:flex;flex-direction:column}
-.rgh,.ucells{display:grid;grid-template-columns:1.5fr .7fr 1fr 1fr 1.25fr 1.25fr 30px;gap:8px 14px;align-items:center}
-.ucards.noprop .rgh,.ucards.noprop .ucells{grid-template-columns:1.5fr .7fr 1.1fr 1.6fr 30px}
+.rgh,.ucells{display:grid;grid-template-columns:2fr .7fr 1fr 1fr .95fr 1.25fr 30px;gap:8px 14px;align-items:center}
+.ucards.noprop .rgh,.ucards.noprop .ucells{grid-template-columns:2fr .7fr 1.1fr 1.1fr 30px}
 .rgh{padding:0 2px 6px;margin-bottom:2px;border-bottom:1px solid #e6ebf3}
 .rgh span{font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
 .urow{padding:9px 2px;border-bottom:1px solid #f0f2f7}
@@ -876,6 +876,7 @@ function makeSupabaseDb(client) {
       const pb = r.partb || {};
       ['equipment', 'utilities', 'fuel', 'services'].forEach(g => { if (Array.isArray(pb[g])) pb[g].forEach((v, i) => place(p, 'partb.' + g + '.' + i, v, sa)); });
       if (pb.writein && typeof pb.writein === 'object') for (const k in pb.writein) place(p, 'partb.writein.' + k, pb.writein[k], sa);
+      const prj = r.principals || {}; if (prj && typeof prj === 'object') for (const i in prj) { const e = prj[i] || {}; if (e.name != null) place(p, 'principals.' + i + '.name', e.name, sa); if (e.title != null) place(p, 'principals.' + i + '.title', e.title, sa); }
       const cl = r.checklist || {};
       for (const k in cl) place(p, 'check.' + k, cl[k], sa);
       D.props[r.id] = p;
@@ -913,6 +914,9 @@ function makeSupabaseDb(client) {
     const cl = {}; let hasCl = false;
     for (const k in m) { const c = k.match(/^check\.(\d+)$/); if (c) { cl[c[1]] = m[k].value; hasCl = true; } }
     if (hasCl) row.checklist = cl;
+    const prw = {};
+    for (const k in m) { const g = k.match(/^principals\.(\d+)\.(name|title)$/); if (g) (prw[g[1]] = prw[g[1]] || {})[g[2]] = m[k].value; }
+    row.principals = prw;
     return row;
   }
   function buildUnitRows(pid) {
@@ -1001,7 +1005,7 @@ function makeSupabaseDb(client) {
   /* ---- cycles: one row = a complete frozen snapshot ------------------------
      Template stamp copies only durable IDENTITY keys; unit rows, Part B,
      checklist, and assets stay per-cycle / property-level respectively. */
-  const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
+  const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets|principals)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
   /* What does NOT carry from the prevailing cycle into a NEW cycle: each
      cycle's own outcomes (proposed rents), its year's factors, its dates, and
      its appraiser. Everything else — unit mix, current rents, UAs and their
@@ -1094,15 +1098,16 @@ function makeSupabaseDb(client) {
         for (const k in form) place(p, k, (form[k] && form[k].value != null ? form[k].value : ''), today());
         touch(pid); return pushSoon(pid);
       },
-      pruneUnitRows(pid, keepU, keepNR, keepLI) {
+      pruneUnitRows(pid, keepU, keepNR, keepLI, keepP) {
         const p = D.props[pid]; if (!p) return Promise.resolve();
-        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String));
+        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String)), kp = new Set((keepP || []).map(String));
         const uidx = k => { const r = k.slice(6); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         const nidx = k => { const r = k.slice(7); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         [p.durable, p.percycle].forEach(b => Object.keys(b).forEach(k => {
           if (k.indexOf('units.') === 0) { const i = uidx(k); if (i !== null && !ku.has(i)) delete b[k]; }
           else if (k.indexOf('nonrev.') === 0) { const i = nidx(k); if (i !== null && !kn.has(i)) delete b[k]; }
           else if (k.indexOf('ns8.') === 0) { const i = uidx(k); if (i !== null && !kl.has(i)) delete b[k]; }
+          else if (keepP && k.indexOf('principals.') === 0) { const r = k.slice(11), d = r.indexOf('.'), i = d > 0 ? r.slice(0, d) : null; if (i !== null && !kp.has(i)) delete b[k]; }
         }));
         touch(pid); return pushSoon(pid);
       },
@@ -1217,15 +1222,16 @@ function makeSupabaseDb(client) {
         }
         return Promise.all(jobs);
       },
-      pruneCycleCells(cid, keepU, keepNR, keepLI) {
+      pruneCycleCells(cid, keepU, keepNR, keepLI, keepP) {
         // cycle twin of pruneUnitRows: deleted unit rows must leave the snapshot too
         const c = D.cycles[cid]; if (!c) return Promise.resolve();
-        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String));
+        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String)), kp = new Set((keepP || []).map(String));
         const idx = (k, plen) => { const r = k.slice(plen); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         Object.keys(c.cells).forEach(k => {
           if (k.indexOf('units.') === 0) { const i = idx(k, 6); if (i !== null && !ku.has(i)) delete c.cells[k]; }
           else if (k.indexOf('nonrev.') === 0) { const i = idx(k, 7); if (i !== null && !kn.has(i)) delete c.cells[k]; }
           else if (k.indexOf('ns8.') === 0) { const i = idx(k, 4); if (i !== null && !kl.has(i)) delete c.cells[k]; }
+          else if (keepP && k.indexOf('principals.') === 0) { const i = idx(k, 11); if (i !== null && !kp.has(i)) delete c.cells[k]; }
         });
         c.updated_at = now();
         return enqueue('cy' + cid, () => pushCycle(cid));
@@ -1255,7 +1261,7 @@ const APPR_ADDR=['appr.addr_street','appr.addr_city','appr.addr_state','appr.add
 const ADDR_GROUPS={'property.addr':ADDR,'ca.addr':CA_ADDR,'tenant.mgmt':MGMT_ADDR,'appr.addr':APPR_ADDR};
 const PARTB={equipment:['Range','Refrigerator','Air Conditioner','Disposal','Dishwasher','Carpet','Drapes'],utilities:['Heating','Cooling','Hot Water','Cooking','Lights, etc.'],services:['Parking','Laundry','Swimming Pool','Tennis Courts','Nursing Care','Linen/Maid Service']};
 const CHECKLIST_FLAT=['Signed cover letter','Signed owner’s checklist','Scope of repair','Appraiser’s transmittal letter','Scope of work','Subject description (+ photos)','Subject’s market area ID','Neighborhood description','Selection-of-comparables narrative','Locator map (subject + comps)','Rent comparability grid (per type)','Adjustments & conclusions narrative','Comparable profiles (+ photo)','Appraiser’s certification','Appraiser’s license copy (if temp)','Gross rents computation (project + SAFMR)','Gross rents vs SAFMR comparison'];
-const SECTION_TITLES={1:'Source documents',2:'Property',3:'Point of contact & signatory',4:'Contract administrator',5:'Appraiser',6:'Rents & unit mix',7:'Items included in rent (Part B)',8:"Owner’s checklist",9:'Tenant notice',10:'OCAF rent adjustment (HUD-9625)',11:'Utility allowance factors'};
+const SECTION_TITLES={1:'Source documents',2:'Property',3:'Point of contact & signatory',4:'Contract administrator',5:'Appraiser',6:'Rents & unit mix',7:'Items included in rent (Part B)',8:"Owner’s checklist",9:'Tenant notice',10:'OCAF rent adjustment (HUD-9625)',11:'Utility allowance factors',12:'Principals'};
 /* HUD publishes exactly four UAF categories per state (UtilAllow_FY file). */
 const UAF_UTILS=[['oil','Oil'],['gas','Natural Gas'],['electric','Electric'],['water','Water / Sewer / Trash']];
 const D='database',T='this-cycle',O='overridden';
@@ -1263,7 +1269,7 @@ const SEED={ // key manifest only — the VALUES are never read (ALL_KEYS below 
   'property.name':['',D],'property.addr_street':['',D],'property.addr_city':['',D],'property.addr_state':['',D],'property.addr_zip':['',D],'property.fha':['',D],'property.s8':['',D],
   'owner.entity_name':['',D],'owner.entity_type':['',D],'owner.entity_type_other':['',D],
   'poc.name':['',D],'poc.email':['',D],'poc.phone':['',D],
-  'owner.gp':['',D],'sig.name':['',D],'sig.title':['',D],'sig.principal':['',D],
+  'owner.gp':['',D],'sig.name':['',D],'sig.title':['',D],'sig.principal':['',D],'principals.0.name':['',D],'principals.0.title':['',D],
   'ca.org':['',D],'ca.prefix':['',D],'ca.name':['',D],'ca.position':['',D],
   'ca.addr_street':['',D],'ca.addr_city':['',D],'ca.addr_state':['',D],'ca.addr_zip':['',D],
   'appr.firm':['',T],'appr.name':['',T],'appr.email':['',T],'appr.phone':['',T],'appr.addr_street':['',T],'appr.addr_city':['',T],'appr.addr_state':['',T],'appr.addr_zip':['',T],
@@ -1290,7 +1296,7 @@ const ALL_KEYS=Object.keys(SEED).map(k=>({key:k}));
 let mpdb=null, activePid=null, activeCid=null, _cyFresh=null;
 const bridge={getDb:async()=>mpdb?(activeCid?mpdb.getFlatCycle(activeCid):mpdb.getFlat(activePid)):{},saveDb:async(m)=>{_cyFresh=null;return activeCid?mpdb.saveFlatCycle(activeCid,m):mpdb.saveFlat(activePid,m);},clearDb:async()=>{}};
 const store=makeStore(bridge,ALL_KEYS);
-let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let NS8=[]; let _undoStack=[]; let _undoNR=[]; let _undoLI=[]; let _pending=null,_refocusSel=null,_pendingSnap=null; let _rcsUpload=null;
+let form=store.emptyForm(); let UNITS=[0]; let NONREV=[]; let NS8=[]; let PRINCIPALS=[0]; let _undoStack=[]; let _undoNR=[]; let _undoLI=[]; let _pending=null,_refocusSel=null,_pendingSnap=null; let _rcsUpload=null;
 
 const CLR={database:['#2563eb','#e8f0fe','On file'],'this-cycle':['#0f766e','#e9f5f2','API / this package'],overridden:['#b45309','#fbf1e6','Overridden'],'auto-calculated':['#2563eb','#e8f0fe','Auto-calc'],'new':['#64748b','#f6f7f9','New']};
 const TODAY=new Date().toISOString().slice(0,10);
@@ -1321,15 +1327,15 @@ function ovIcons(kk){const keys=Array.isArray(kk)?kk:[kk];const j=keys.join(',')
 function cycleProgs(){if(activeCid&&mpdb){const cy=mpdb.listCycles(activePid).find(c=>c.id===activeCid);if(cy&&cy.programs.length)return cy.programs;}return ['rcs'];}
 function hasProg(p){return cycleProgs().indexOf(p)>=0;}
 function visibleSections(){const pr=cycleProgs();const has=p=>pr.indexOf(p)>=0;
-  if(has('rcs'))return [1,2,3,4,5,6,7,8,9];                 // the classic RCS flow
-  if(has('ocaf')&&has('uaf'))return [1,2,3,4,6,10,11,7,9];  // rents -> worksheet -> UA -> Part B -> tenant notice
-  if(has('ocaf'))return [1,2,3,4,6,10,7];
-  return [1,2,3,4,6,11,7,9];                                // UAF-only
+  if(has('rcs'))return [1,2,12,3,4,5,6,7,8,9];                 // the classic RCS flow
+  if(has('ocaf')&&has('uaf'))return [1,2,12,3,4,6,10,11,7,9];  // rents -> worksheet -> UA -> Part B -> tenant notice
+  if(has('ocaf'))return [1,2,12,3,4,6,10,7];
+  return [1,2,12,3,4,6,11,7,9];                                // UAF-only
 }
 let _secPos={};
 function computeSecPos(){_secPos={};visibleSections().forEach((n,ix)=>_secPos[n]=ix+1);}
 function secRef(n){return 'Section '+(_secPos[n]||n);}
-function deriveUnits(){const u=new Set([0]),nr=new Set(),lh=new Set();Object.keys(form).forEach(k=>{let m=k.match(/^units\.(\d+)\./);if(m)u.add(+m[1]);m=k.match(/^nonrev\.(\d+)\./);if(m)nr.add(+m[1]);m=k.match(/^ns8\.(\d+)\./);if(m)lh.add(+m[1]);});UNITS=[...u].sort((a,b)=>a-b);NONREV=[...nr].sort((a,b)=>a-b);NS8=[...lh].sort((a,b)=>a-b);}
+function deriveUnits(){const u=new Set([0]),nr=new Set(),lh=new Set(),pr=new Set([0]);Object.keys(form).forEach(k=>{let m=k.match(/^units\.(\d+)\./);if(m)u.add(+m[1]);m=k.match(/^nonrev\.(\d+)\./);if(m)nr.add(+m[1]);m=k.match(/^ns8\.(\d+)\./);if(m)lh.add(+m[1]);m=k.match(/^principals\.(\d+)\./);if(m)pr.add(+m[1]);});UNITS=[...u].sort((a,b)=>a-b);NONREV=[...nr].sort((a,b)=>a-b);NS8=[...lh].sort((a,b)=>a-b);PRINCIPALS=[...pr].sort((a,b)=>a-b);}
 
 function defUaSrc(i){const e=numf(get('units.'+i+'.ua_exec')),r=numf(get('units.'+i+'.ua_rcs'));return e>0?'exec':(r>0?'rcs':'custom');}
 function defSafmrSrc(i){const h=numf(get('units.'+i+'.safmr_hud')),r=numf(get('units.'+i+'.safmr_rcs'));return h>0?'hud':(r>0?'rcs':'custom');}
@@ -1448,7 +1454,7 @@ const DIR_SRCROW={'appr.name':'RCS report','sig.name':'Executed RS'};
 function moneySrcTag(k){if(/^units\.\d+\.current$/.test(k))return 'Executed RS';if(/^units\.\d+\.proposed$/.test(k))return 'RCS report';if(/^nonrev\.\d+\.rent$/.test(k))return 'Executed RS';return null;}
 function dimPick(tag){return '<div class="uadrop pocpick"><div class="uatrigger" tabindex="0" title="Source"><span class="cvx">&#9662;</span></div><div class="uamenu"><div class="uaopt srcdim">\u2014<span class="uasub">'+esc(tag)+' \u00b7 not available</span></div></div></div>';}
 /* ================== end external-source dropdowns ================== */
-function sigPrincipalOpts(){const o=[];const gp=(get('owner.gp')||'').trim();if(gp)o.push(gp);return o;}
+function sigPrincipalOpts(){const o=[];PRINCIPALS.forEach(i=>{const t=(get('principals.'+i+'.title')||'').trim(),n=(get('principals.'+i+'.name')||'').trim();const v=t||n;if(v&&o.indexOf(v)<0)o.push(v);});if(!o.length){const gp=(get('owner.gp')||'').trim();if(gp)o.push(gp);}return o;}
 function sigTitleCell(f){const c=CLR[srcOf('sig.title')]||CLR.new;const pk='sig.principal';const pc=CLR[srcOf(pk)]||CLR.new;
   const dim='<div class="uaopt srcdim">\u2014<span class="uasub">Executed RS \u00b7 not available</span></div>';
   let dd=csDrop(pk,sigPrincipalOpts(),'Select\u2026','',true);
@@ -1494,6 +1500,11 @@ function mgmtCell(){const src=get('tenant.mgmt_source')||'property';const propHa
   const ovSrc=srcOf('tenant.mgmt_source')==='overridden';const c=ovSrc?CLR.overridden:CLR[propHas?'database':'new'];
   return '<div class="field"><div class="flabel">Management address</div><div class="fbox mgmtcell" data-box="tenant.mgmt_address" style="background:'+c[1]+';border-left-color:'+c[0]+'"><div class="uadrop"><div class="uatrigger" tabindex="0"><span class="ualab">'+inner+'</span><span class="cvx">▾</span></div>'+menu+'</div>'+(ovSrc?ovIcons('tenant.mgmt_source'):'')+'</div></div>';}
 function renderFieldSection(sec){const cols=[[],[]];sec.fields.forEach(f=>cols[f.col].push(fieldCell(f)));return card(sec.n,sectionPill(sec.n),`<div class="cols"><div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>`);}
+function principalHasData(i){return ['name','title'].some(s=>{const v=get('principals.'+i+'.'+s);return v!==''&&v!=null;});}
+function renderPrincipals(){
+  const rows=PRINCIPALS.map(i=>{const nk='principals.'+i+'.name',tk='principals.'+i+'.title';const nc=CLR[srcOf(nk)]||CLR.new,tc=CLR[srcOf(tk)]||CLR.new;
+    return `<div class="prow"><div class="field"><div class="fbox" data-box="${nk}" style="background:${nc[1]};border-left-color:${nc[0]}"><input type="text" data-k="${nk}" value="${esc(get(nk))}" autocomplete="off"></div>${ovNote(nk)}</div><div class="field"><div class="fbox" data-box="${tk}" style="background:${tc[1]};border-left-color:${tc[0]}"><input type="text" data-k="${tk}" value="${esc(get(tk))}" autocomplete="off"></div>${ovNote(tk)}</div><div class="urx"><button class="trash" data-delprin="${i}" title="Delete">\u2715</button></div></div>`;}).join('');
+  return card(12,sectionPill(12),`<div class="pbnote">The principals comprising the ownership entity, as they appear in Part G of the rent schedule. The signatory title in ${secRef(3)} selects its principal from this list.</div><div class="prhead"><span>Principal name</span><span>Title</span><span></span></div>${rows}<div class="addrow" id="prinAdd">+ Add principal</div>`);}
 
 function boxColor(k){return CLR[srcOf(k)]||CLR.new;}
 function moneyBox(k){const c=boxColor(k);const _mt=moneySrcTag(k);return `<div class="rbox money" data-box="${k}" style="background:${c[1]};border-left-color:${c[0]}"><span class="cur">$</span><input type="text" data-money="1" data-k="${k}" value="${esc(fmtMoney(get(k)))}">${_mt?dimPick(_mt):''}${ovIcons(k)}</div>`;}
@@ -1661,6 +1672,7 @@ function renderSources(){
 
 function sectionKeys(n){if(n===10)return ['ocaf.g','ocaf.rate_type','ocaf.ds_annual','ocaf.ds_t12','ocaf.ds_f12','ocaf.factor_pub','ocaf.factor_custom','ocaf.factor_src'];
   if(n===11)return ['uaf.f_oil','uaf.f_gas','uaf.f_electric','uaf.f_water'].concat(UNITS.flatMap(i=>UAF_UTILS.map(u=>'units.'+i+'.uac_'+u[0])));
+  if(n===12)return PRINCIPALS.flatMap(i=>['principals.'+i+'.name','principals.'+i+'.title']);
   if(n===6)return UNITS.flatMap(i=>['units.'+i+'.br','units.'+i+'.ba','units.'+i+'.num_units','units.'+i+'.current','units.'+i+'.proposed','units.'+i+'.ua_source','units.'+i+'.safmr_source']);const fs=FIELD_SECTIONS.find(s=>s.n===n);return fs?fs.fields.flatMap(f=>f.type==='sigtitle'?['sig.title','sig.principal']:f.type==='pair'?f.items.map(x=>x.k):f.type==='addr'?ADDR:(f.type==='caaddr'?CA_ADDR:(f.type==='appraddr'?APPR_ADDR:(f.type==='mgmtaddr'?MGMT_ADDR:(f.prefix?[f.prefix,f.k]:[f.k]))))):[];}
 function sectionStatus(n){if(n===1)return _rcsUpload?'ok':((hasProg('rcs')||hasProg('ocaf'))?'warn':'ok');
   if(n===10){if(sectionKeys(10).some(k=>srcOf(k)==='overridden'))return'warn';const C=ocafCalc();return(C.F>0&&C.R>0)?'ok':'warn';}
@@ -1937,7 +1949,7 @@ function renderBar(){const a=analysis();const conf=UNITS.filter(uaConflict).leng
  }
  const pCur=a.ceil>0?clamp(a.cg/a.ceil*100):0,pPro=a.ceil>0?clamp(a.pg/a.ceil*100):0;
  el('ccbar').innerHTML=`<div class="bl"><div class="minigauge"><div class="seg dark" style="width:${pCur}%"></div><div class="seg light" style="left:${pCur}%;width:${Math.max(0,pPro-pCur)}%"></div><div class="oend"></div></div><div class="mn"><b style="color:#2f7d57">${money(a.cg)}</b> current · <b style="color:#47a377">${money(a.pg)}</b> proposed · <b>${a.ceil>0?money(a.ceil):'—'}</b> ceiling · <b class="teal">${sPct(a.pct)}</b> RCS boost</div></div><div class="bchks">${chks}${bc(a.safmrMissing||a.safmrOver?'warn':(a.safmrConflict?'info':'ok'),'SAFMR')}</div><div class="bpass" style="color:${a.ceil>0?(a.pass?'#166534':'#b91c1c'):'#64748b'}">${a.ceil>0?((a.pass?'✓ PASS':'✗ OVER')+' · '+money(Math.abs(a.headroom))):'SAFMR needed'}</div>`;}
-function renderBody(){const _sy=window.scrollY;const _anchorSel=(_refocusSel&&!_mouseFocus)?_refocusSel:(((Date.now()-_lastClickAt)<2000)?_lastClickSel:null);let _anchorTop=null;if(_anchorSel){try{const _ac=document.querySelector(_anchorSel);if(_ac)_anchorTop=_ac.getBoundingClientRect().top;}catch(e){}}computeSecPos();const _SR={1:renderSources,2:()=>renderFieldSection(FIELD_SECTIONS[0]),3:()=>renderFieldSection(FIELD_SECTIONS[1]),4:()=>renderFieldSection(FIELD_SECTIONS[2]),5:()=>renderFieldSection(FIELD_SECTIONS[3]),6:renderRents,7:renderPartB,8:renderChecklist,9:()=>renderFieldSection(FIELD_SECTIONS[4]),10:renderOcaf,11:renderUaf};el('sections').innerHTML=visibleSections().map(n=>_SR[n]()).join('');
+function renderBody(){const _sy=window.scrollY;const _anchorSel=(_refocusSel&&!_mouseFocus)?_refocusSel:(((Date.now()-_lastClickAt)<2000)?_lastClickSel:null);let _anchorTop=null;if(_anchorSel){try{const _ac=document.querySelector(_anchorSel);if(_ac)_anchorTop=_ac.getBoundingClientRect().top;}catch(e){}}computeSecPos();const _SR={1:renderSources,2:()=>renderFieldSection(FIELD_SECTIONS[0]),3:()=>renderFieldSection(FIELD_SECTIONS[1]),4:()=>renderFieldSection(FIELD_SECTIONS[2]),5:()=>renderFieldSection(FIELD_SECTIONS[3]),6:renderRents,7:renderPartB,8:renderChecklist,9:()=>renderFieldSection(FIELD_SECTIONS[4]),10:renderOcaf,11:renderUaf,12:renderPrincipals};el('sections').innerHTML=visibleSections().map(n=>_SR[n]()).join('');
   wireBody();renderCommand();renderBar();renderRail();renderAttention();
   if(_refocusSel&&!_mouseFocus){try{const _f=document.querySelector(_refocusSel);if(_f&&_f.focus){_f.focus({preventScroll:true});if(/^(INPUT|TEXTAREA)$/.test(_f.tagName)&&typeof _f.setSelectionRange==='function'){const _L=(_f.value||'').length;try{_f.setSelectionRange(_L,_L);}catch(_e){}}}}catch(e){}}_refocusSel=null;
   if(_anchorSel&&_anchorTop!=null){try{const _a2=document.querySelector(_anchorSel);if(_a2){const _nt=_a2.getBoundingClientRect().top;window.scrollTo(0,window.scrollY+(_nt-_anchorTop));}else window.scrollTo(0,_sy);}catch(e){try{window.scrollTo(0,_sy);}catch(_z){}}}else{try{window.scrollTo(0,_sy);}catch(e){}}}
@@ -1974,7 +1986,7 @@ function wireBody(){
   document.querySelectorAll('input[data-k]').forEach(inp=>{const k=inp.getAttribute('data-k'),wion=inp.getAttribute('data-wion');
     inp.addEventListener('input',()=>{let v=inp.value;if(inp.getAttribute('data-phone')){v=fmtPhone(v);inp.value=v;}else if(inp.getAttribute('data-money')){v=cleanNum(v);inp.value=fmtMoney(v);}else if(inp.getAttribute('data-date')){v=fmtDateInput(v);inp.value=v;}form=store.editForm(form,k,v);if(k==='property.name'&&el('hdrProp'))el('hdrProp').textContent=(v||'(unnamed property)');if(k==='property.addr_zip')scheduleHudRefresh();
       if(wion){const on=v.length>0;form=store.editForm(form,wion,on?'1':'');const cbEl=inp.closest('.cb');if(cbEl){cbEl.classList.remove('empty','unchecked','checked');cbEl.classList.add(!v?'empty':(on?'checked':'unchecked'));const bx=cbEl.querySelector('.box');if(bx){bx.textContent=on?'✓':'';bx.style.color=provColor(wion);}}}else if(inp.getAttribute('data-util')){if(v===''){form=store.editForm(form,k+'.on','');form=store.editForm(form,k+'.fuel','');}const cbEl=inp.closest('.cb');const stillOn=v!==''&&get(k+'.on')==='1';if(cbEl){cbEl.classList.remove('empty','unchecked','checked');cbEl.classList.add(!v?'empty':(stillOn?'checked':'unchecked'));const bx=cbEl.querySelector('.box');if(bx){bx.textContent=stillOn?'✓':'';bx.style.color=provColor(k+'.on');}const f3=cbEl.querySelector('[data-fuel3]');if(f3){const fk=k+'.fuel',fv=get(fk),fhas=fv!==''&&fv!=null,fc=CLR[fhas?srcOf(fk):'new']||CLR.new;f3.textContent=fhas?fv:'-';f3.style.color=fc[0];f3.style.borderColor=fc[0];f3.style.background=fc[1];}}}
-      paintCell(k);refreshFlags();if(/^units\.|^nonrev\./.test(k)){renderCommand();renderBar();const mm=k.match(/^units\.(\d+)\.(current|proposed)$/);if(mm){const ui=mm[1],me=document.querySelector('[data-metric="'+ui+'"]');if(me){const cc=numf(get('units.'+ui+'.current')),pp=numf(get('units.'+ui+'.proposed'));if(cc>0&&pp>0){me.textContent=sMoney(pp-cc)+' / unit · '+sPct(Math.round((pp-cc)/cc*100));me.style.color=(pp-cc)>=0?'#166534':'#b91c1c';}else me.textContent='';}}}refreshOcafLines(k);refreshUafLines(k);if(/^property\.addr_|^rent_schedule\.date_eff/.test(k)){scheduleHudRefresh();scheduleFactorRefresh();}setStatus('Editing — on-file changes show Overridden until you Update or Revert.');});inp.addEventListener('keydown',async e=>{if(e.key!=='Enter'&&e.key!=='Escape')return;const _keys=fieldKeys(k);if(_pending&&_pending.length&&_pending.indexOf(k)>=0){e.preventDefault();e.stopPropagation();if(e.key==='Escape')revertPending();else commitPending();return;}if(e.key==='Escape'){if(keysCanRevert(_keys)){e.preventDefault();e.stopPropagation();_keys.forEach(kk=>store.revertForm(form,kk));refreshIfPrereq(_keys);_refocusSel='[data-k="'+k+'"]';renderBody();setStatus('Reverted your change to the on-file value.');}else if(srcOf(k)==='new'&&(inp.value||'')!==''){e.preventDefault();e.stopPropagation();const _clr=groupOf(k)?[k]:_keys;_clr.forEach(kk=>store.editForm(form,kk,''));_refocusSel='[data-k="'+k+'"]';renderBody();setStatus('Cleared your unsaved entry.');}return;}e.preventDefault();if(handleZeroUnitCommit(_keys))return;if(k==='poc.phone'){const _d=(inp.value||'').replace(/[^0-9]/g,'');if(_d.length!==0&&_d.length!==10){setStatus('Enter a complete 10-digit phone before saving.');return;}}if(!keysCanSave(_keys))return;_keys.forEach(kk=>{if(kk.indexOf('partb.writein.')===0&&kk.indexOf('.',14)<0&&kk.slice(14)!=='u1')clearUncheckedWriteins([kk.slice(14)]);});const _sk=[];_keys.forEach(kk=>coupledKeys(kk).forEach(x=>{if(_sk.indexOf(x)<0)_sk.push(x);}));if(groupOf(k)==='tenant.mgmt'&&_sk.indexOf('tenant.mgmt_source')<0)_sk.push('tenant.mgmt_source');try{form=await store.saveFields(form,_sk);}catch(e){saveFailed(e);return;}await refreshSnap();_refocusSel='[data-k="'+k+'"]';renderBody();setStatus('Saved this field to the database.');});if(wion)inp.addEventListener('focus',()=>{if(inp.value&&get(wion)!=='1'){form=store.editForm(form,wion,'1');const cb=inp.closest('.cb');if(cb){cb.classList.remove('unchecked','empty');cb.classList.add('checked');const bx=cb.querySelector('.box');if(bx)bx.textContent='✓';}}});});
+      paintCell(k);refreshFlags();if(/^units\.|^nonrev\./.test(k)){renderCommand();renderBar();const mm=k.match(/^units\.(\d+)\.(current|proposed)$/);if(mm){const ui=mm[1],me=document.querySelector('[data-metric="'+ui+'"]');if(me){const cc=numf(get('units.'+ui+'.current')),pp=numf(get('units.'+ui+'.proposed'));if(cc>0&&pp>0){me.textContent=sMoney(pp-cc)+' / unit · '+sPct(Math.round((pp-cc)/cc*100));me.style.color=(pp-cc)>=0?'#166534':'#b91c1c';}else me.textContent='';}}}refreshOcafLines(k);refreshUafLines(k);if(/^property\.addr_|^rent_schedule\.date_eff/.test(k)){scheduleHudRefresh();scheduleFactorRefresh();}setStatus('Editing — on-file changes show Overridden until you Update or Revert.');});inp.addEventListener('keydown',async e=>{if(e.key!=='Enter'&&e.key!=='Escape')return;const _keys=fieldKeys(k);if(_pending&&_pending.length&&_pending.indexOf(k)>=0){e.preventDefault();e.stopPropagation();if(e.key==='Escape')revertPending();else commitPending();return;}if(e.key==='Escape'){if(keysCanRevert(_keys)){e.preventDefault();e.stopPropagation();_keys.forEach(kk=>store.revertForm(form,kk));refreshIfPrereq(_keys);_refocusSel='[data-k="'+k+'"]';renderBody();setStatus('Reverted your change to the on-file value.');}else if(srcOf(k)==='new'&&(inp.value||'')!==''){e.preventDefault();e.stopPropagation();const _clr=groupOf(k)?[k]:_keys;_clr.forEach(kk=>store.editForm(form,kk,''));_refocusSel='[data-k="'+k+'"]';renderBody();setStatus('Cleared your unsaved entry.');}return;}e.preventDefault();if(_keys.length===1&&/^principals\.\d+\./.test(_keys[0])){const pi=+_keys[0].match(/^principals\.(\d+)\./)[1];if(!principalHasData(pi)){if(PRINCIPALS.length>1){Object.keys(form).forEach(kk=>{if(kk.indexOf('principals.'+pi+'.')===0)delete form[kk];});PRINCIPALS=PRINCIPALS.filter(x=>x!==pi);renderBody();setStatus('Empty principal row removed.');}return;}}if(handleZeroUnitCommit(_keys))return;if(k==='poc.phone'){const _d=(inp.value||'').replace(/[^0-9]/g,'');if(_d.length!==0&&_d.length!==10){setStatus('Enter a complete 10-digit phone before saving.');return;}}if(!keysCanSave(_keys))return;_keys.forEach(kk=>{if(kk.indexOf('partb.writein.')===0&&kk.indexOf('.',14)<0&&kk.slice(14)!=='u1')clearUncheckedWriteins([kk.slice(14)]);});const _sk=[];_keys.forEach(kk=>coupledKeys(kk).forEach(x=>{if(_sk.indexOf(x)<0)_sk.push(x);}));if(groupOf(k)==='tenant.mgmt'&&_sk.indexOf('tenant.mgmt_source')<0)_sk.push('tenant.mgmt_source');try{form=await store.saveFields(form,_sk);}catch(e){saveFailed(e);return;}await refreshSnap();_refocusSel='[data-k="'+k+'"]';renderBody();setStatus('Saved this field to the database.');});if(wion)inp.addEventListener('focus',()=>{if(inp.value&&get(wion)!=='1'){form=store.editForm(form,wion,'1');const cb=inp.closest('.cb');if(cb){cb.classList.remove('unchecked','empty');cb.classList.add('checked');const bx=cb.querySelector('.box');if(bx)bx.textContent='✓';}}});});
   document.querySelectorAll('select[data-k]').forEach(sel=>{const k=sel.getAttribute('data-k');sel.addEventListener('change',()=>{form=store.editForm(form,k,sel.value);paintCell(k);renderRail();renderAttention();});});
   document.querySelectorAll('input[data-cb]').forEach(c=>{const k=c.getAttribute('data-cb');c.addEventListener('change',()=>{_pendingSnap=snapOf([k]);form=store.editForm(form,k,c.checked?'1':'');_pending=[k];_refocusSel='[data-cb="'+k+'"]';renderBody();});});
   document.querySelectorAll('[data-fuel]').forEach(fl=>fl.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const k=fl.getAttribute('data-fuel');const cur=(form[k]&&form[k].value)||'';const nx=cur===''?'E':(cur==='E'?'F':(cur==='F'?'G':''));_pendingSnap=snapOf([k]);form=store.editForm(form,k,nx);_pending=[k];renderBody();}));
@@ -2027,6 +2039,8 @@ function wireBody(){
   document.querySelectorAll('[data-delns8]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delns8');const hadData=ns8HasData(i)||numf(get('ns8.'+i+'.num_units'))>0;const snap={};Object.keys(form).forEach(k=>{if(k.indexOf('ns8.'+i+'.')===0){snap[k]=form[k];delete form[k];}});NS8=NS8.filter(x=>x!==i);const flagCell=form['ns8.enabled'];if(!NS8.length)form=store.editForm(form,'ns8.enabled','');if(hadData){_undoLI.push({i,snap,flag:flagCell});renderBody();setStatus('Non-Section 8 unit type deleted — undo available below.');}else{renderBody();setStatus(NS8.length?'Empty non-Section 8 unit type removed.':'Last non-Section 8 unit type removed — section turned off.');}}));
   const add=el('addUnit');if(add)add.onclick=()=>{_undoStack=[];const nx=(UNITS.length?Math.max.apply(null,UNITS):-1)+1;form=store.editForm(form,'units.'+nx+'.br','');UNITS.push(nx);renderBody();setStatus('');};
   const addn=el('addNonrev');if(addn)addn.onclick=()=>{_undoNR=[];NONREV.push(NONREV.length?Math.max.apply(null,NONREV)+1:0);renderBody();setStatus('');};
+  document.querySelectorAll('[data-delprin]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-delprin');Object.keys(form).forEach(k=>{if(k.indexOf('principals.'+i+'.')===0)delete form[k];});PRINCIPALS=PRINCIPALS.filter(x=>x!==i);if(!PRINCIPALS.length)PRINCIPALS=[0];renderBody();setStatus('Principal removed.');}));
+  const pa=el('prinAdd');if(pa)pa.onclick=()=>{PRINCIPALS.push((PRINCIPALS.length?Math.max.apply(null,PRINCIPALS):-1)+1);renderBody();setStatus('');};
   const nt=el('nonrevToggle');if(nt)nt.onchange=()=>{if(!nt.checked&&NONREV.length){nt.checked=true;setStatus('Delete the non-revenue rows first to turn this section off.');return;}form=store.editForm(form,'nonrev.enabled',nt.checked?'1':'');if(nt.checked&&!NONREV.length){_undoNR=[];NONREV=[0];}renderBody();setStatus('');};
   const lt=el('ns8Toggle');if(lt)lt.onchange=()=>{
     if(!lt.checked&&NS8.some(i=>numf(get('ns8.'+i+'.num_units'))>0)){lt.checked=true;setStatus('Delete the non-Section 8 rows first to turn this section off.');return;}
@@ -2310,7 +2324,7 @@ function handleZeroUnitCommit(keys){const zk=keys.find(k=>/^(units|nonrev|ns8)\.
     if(fam==='units')UNITS=UNITS.filter(x=>x!==i);
     else if(fam==='nonrev'){NONREV=NONREV.filter(x=>x!==i);if(!NONREV.length){form=store.editForm(form,'nonrev.enabled','');form=await store.saveField(form,'nonrev.enabled');}}
     else{NS8=NS8.filter(x=>x!==i);if(!NS8.length){form=store.editForm(form,'ns8.enabled','');form=await store.saveField(form,'ns8.enabled');}}
-    if(mpdb)await(activeCid?mpdb.pruneCycleCells(activeCid,UNITS,NONREV,NS8):mpdb.pruneUnitRows(activePid,UNITS,NONREV,NS8));
+    if(mpdb)await(activeCid?mpdb.pruneCycleCells(activeCid,UNITS,NONREV,NS8,PRINCIPALS):mpdb.pruneUnitRows(activePid,UNITS,NONREV,NS8,PRINCIPALS));
     await refreshSnap();renderBody();setStatus('Zero-unit '+label+' deleted and saved.');
   }catch(e){saveFailed(e);renderBody();}});
   return true;}
@@ -2323,12 +2337,13 @@ async function saveNow(afterSave,fixFirst){clearUncheckedWriteins(['e1','e2','e3
     else{form=store.editForm(form,fk,'');firstFix='left blank';}}
   countlessUnits().filter(i=>!(fixFirst&&i===first)).forEach(i=>Object.keys(form).forEach(k=>{if(k.indexOf('units.'+i+'.')===0)delete form[k];}));
   NONREV.filter(i=>numf(get('nonrev.'+i+'.num_units'))<=0).forEach(i=>Object.keys(form).forEach(k=>{if(k.indexOf('nonrev.'+i+'.')===0)delete form[k];}));
+  PRINCIPALS.filter(i=>!principalHasData(i)).forEach(i=>Object.keys(form).forEach(k=>{if(k.indexOf('principals.'+i+'.')===0)delete form[k];}));
   if(get('ns8.enabled')!=='1'){Object.keys(form).forEach(k=>{if(/^ns8\.\d+\./.test(k))delete form[k];});NS8=[];} // section off: its hidden rows go
   NS8.filter(i=>numf(get('ns8.'+i+'.num_units'))<=0).forEach(i=>Object.keys(form).forEach(k=>{if(k.indexOf('ns8.'+i+'.')===0)delete form[k];}));
   if(!Object.keys(form).some(k=>/^nonrev\.\d+\./.test(k))&&get('nonrev.enabled')==='1')form=store.editForm(form,'nonrev.enabled','');
   if(!Object.keys(form).some(k=>/^ns8\.\d+\./.test(k))&&get('ns8.enabled')==='1')form=store.editForm(form,'ns8.enabled','');
   deriveUnits();
-  try{form=await store.saveToDb(form);if(mpdb)await(activeCid?mpdb.pruneCycleCells(activeCid,UNITS,NONREV,NS8):mpdb.pruneUnitRows(activePid,UNITS,NONREV,NS8));}
+  try{form=await store.saveToDb(form);if(mpdb)await(activeCid?mpdb.pruneCycleCells(activeCid,UNITS,NONREV,NS8,PRINCIPALS):mpdb.pruneUnitRows(activePid,UNITS,NONREV,NS8,PRINCIPALS));}
   catch(e){saveFailed(e);return;}
   await refreshSnap();deriveUnits();if(firstFix==='left blank'&&form[fk])form[fk].source='new';if(afterSave)afterSave();
   if(firstFix)setStatus('Saved — but zero units cannot be committed: the first unit type\u2019s count was '+firstFix+'.');}

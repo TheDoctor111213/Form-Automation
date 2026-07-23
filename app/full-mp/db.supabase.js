@@ -96,6 +96,7 @@ function makeSupabaseDb(client) {
       const pb = r.partb || {};
       ['equipment', 'utilities', 'fuel', 'services'].forEach(g => { if (Array.isArray(pb[g])) pb[g].forEach((v, i) => place(p, 'partb.' + g + '.' + i, v, sa)); });
       if (pb.writein && typeof pb.writein === 'object') for (const k in pb.writein) place(p, 'partb.writein.' + k, pb.writein[k], sa);
+      const prj = r.principals || {}; if (prj && typeof prj === 'object') for (const i in prj) { const e = prj[i] || {}; if (e.name != null) place(p, 'principals.' + i + '.name', e.name, sa); if (e.title != null) place(p, 'principals.' + i + '.title', e.title, sa); }
       const cl = r.checklist || {};
       for (const k in cl) place(p, 'check.' + k, cl[k], sa);
       D.props[r.id] = p;
@@ -133,6 +134,9 @@ function makeSupabaseDb(client) {
     const cl = {}; let hasCl = false;
     for (const k in m) { const c = k.match(/^check\.(\d+)$/); if (c) { cl[c[1]] = m[k].value; hasCl = true; } }
     if (hasCl) row.checklist = cl;
+    const prw = {};
+    for (const k in m) { const g = k.match(/^principals\.(\d+)\.(name|title)$/); if (g) (prw[g[1]] = prw[g[1]] || {})[g[2]] = m[k].value; }
+    row.principals = prw;
     return row;
   }
   function buildUnitRows(pid) {
@@ -221,7 +225,7 @@ function makeSupabaseDb(client) {
   /* ---- cycles: one row = a complete frozen snapshot ------------------------
      Template stamp copies only durable IDENTITY keys; unit rows, Part B,
      checklist, and assets stay per-cycle / property-level respectively. */
-  const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
+  const isTemplateKey = k => !isPerCycleKey(k) && !/^(units|ns8|nonrev|partb|check|assets|principals)\./.test(k) && k !== 'ns8.enabled' && k !== 'nonrev.enabled';
   /* What does NOT carry from the prevailing cycle into a NEW cycle: each
      cycle's own outcomes (proposed rents), its year's factors, its dates, and
      its appraiser. Everything else — unit mix, current rents, UAs and their
@@ -314,15 +318,16 @@ function makeSupabaseDb(client) {
         for (const k in form) place(p, k, (form[k] && form[k].value != null ? form[k].value : ''), today());
         touch(pid); return pushSoon(pid);
       },
-      pruneUnitRows(pid, keepU, keepNR, keepLI) {
+      pruneUnitRows(pid, keepU, keepNR, keepLI, keepP) {
         const p = D.props[pid]; if (!p) return Promise.resolve();
-        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String));
+        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String)), kp = new Set((keepP || []).map(String));
         const uidx = k => { const r = k.slice(6); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         const nidx = k => { const r = k.slice(7); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         [p.durable, p.percycle].forEach(b => Object.keys(b).forEach(k => {
           if (k.indexOf('units.') === 0) { const i = uidx(k); if (i !== null && !ku.has(i)) delete b[k]; }
           else if (k.indexOf('nonrev.') === 0) { const i = nidx(k); if (i !== null && !kn.has(i)) delete b[k]; }
           else if (k.indexOf('ns8.') === 0) { const i = uidx(k); if (i !== null && !kl.has(i)) delete b[k]; }
+          else if (keepP && k.indexOf('principals.') === 0) { const r = k.slice(11), d = r.indexOf('.'), i = d > 0 ? r.slice(0, d) : null; if (i !== null && !kp.has(i)) delete b[k]; }
         }));
         touch(pid); return pushSoon(pid);
       },
@@ -437,15 +442,16 @@ function makeSupabaseDb(client) {
         }
         return Promise.all(jobs);
       },
-      pruneCycleCells(cid, keepU, keepNR, keepLI) {
+      pruneCycleCells(cid, keepU, keepNR, keepLI, keepP) {
         // cycle twin of pruneUnitRows: deleted unit rows must leave the snapshot too
         const c = D.cycles[cid]; if (!c) return Promise.resolve();
-        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String));
+        const ku = new Set((keepU || []).map(String)), kn = new Set((keepNR || []).map(String)), kl = new Set((keepLI || []).map(String)), kp = new Set((keepP || []).map(String));
         const idx = (k, plen) => { const r = k.slice(plen); const d = r.indexOf('.'); return d > 0 ? r.slice(0, d) : null; };
         Object.keys(c.cells).forEach(k => {
           if (k.indexOf('units.') === 0) { const i = idx(k, 6); if (i !== null && !ku.has(i)) delete c.cells[k]; }
           else if (k.indexOf('nonrev.') === 0) { const i = idx(k, 7); if (i !== null && !kn.has(i)) delete c.cells[k]; }
           else if (k.indexOf('ns8.') === 0) { const i = idx(k, 4); if (i !== null && !kl.has(i)) delete c.cells[k]; }
+          else if (keepP && k.indexOf('principals.') === 0) { const i = idx(k, 11); if (i !== null && !kp.has(i)) delete c.cells[k]; }
         });
         c.updated_at = now();
         return enqueue('cy' + cid, () => pushCycle(cid));
